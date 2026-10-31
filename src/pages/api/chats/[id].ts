@@ -352,6 +352,8 @@ export async function POST(context: APIContext): Promise<Response> {
   }
 
   const queueWhileBusy = body.queue === true;
+  /** Interrupt the in-flight run on this process and start a new turn (Cursor-style steer). */
+  const steerWhileBusy = body.steer === true;
   const isFirstMessage = thread.messages.length === 0;
   const userContent = serializeChatMessageContent(message, images, docs);
   const linked_jobs = await listJobsForItem('chat', id);
@@ -380,28 +382,29 @@ export async function POST(context: APIContext): Promise<Response> {
   }
 
   const leaseActive = await getAliveAgentRunLease(userId, id);
-  const localActive = isAgentRunActive(userId, id);
+  let localActive = isAgentRunActive(userId, id);
   if (localActive || leaseActive) {
-    if (queueWhileBusy) {
+    if (steerWhileBusy && localActive) {
+      cancelAgentRun(userId, id);
+      clearAgentProgress(userId, id);
+      localActive = isAgentRunActive(userId, id);
+    }
+
+    const persistQueuedUser = async () => {
       let title = thread.title;
       let userMessage = { role: 'user' as const, content: userContent };
-      try {
-        const persistedUser = await persistUserMessage(
-          ownerUserId,
-          id,
-          thread,
-          message,
-          images,
-          docs,
-          userContent,
-          isFirstMessage,
-        );
-        title = persistedUser.title;
-        userMessage = persistedUser.userMessage;
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Failed to save message';
-        return jsonResponse({ ok: false, error: msg }, 500);
-      }
+      const persistedUser = await persistUserMessage(
+        ownerUserId,
+        id,
+        thread,
+        message,
+        images,
+        docs,
+        userContent,
+        isFirstMessage,
+      );
+      title = persistedUser.title;
+      userMessage = persistedUser.userMessage;
       return jsonResponse({
         ok: true,
         queued: true,
@@ -409,8 +412,18 @@ export async function POST(context: APIContext): Promise<Response> {
         userMessage,
         ...(Object.keys(promoted_files).length ? { promoted_files } : {}),
       });
+    };
+
+    if (queueWhileBusy || (steerWhileBusy && leaseActive && !localActive)) {
+      try {
+        return await persistQueuedUser();
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Failed to save message';
+        return jsonResponse({ ok: false, error: msg }, 500);
+      }
     }
-    if (localActive) {
+
+    if (!steerWhileBusy && localActive) {
       return jsonResponse(
         {
           ok: false,
@@ -420,16 +433,17 @@ export async function POST(context: APIContext): Promise<Response> {
         },
         409,
       );
+    } else if (leaseActive) {
+      return jsonResponse(
+        {
+          ok: false,
+          run_in_progress: true,
+          error:
+            'A reply for this chat is still finishing after a deploy — hang tight, it will land when the previous run completes.',
+        },
+        503,
+      );
     }
-    return jsonResponse(
-      {
-        ok: false,
-        run_in_progress: true,
-        error:
-          'A reply for this chat is still finishing after a deploy — hang tight, it will land when the previous run completes.',
-      },
-      503,
-    );
   }
 
   // Save the user's message before running the agent so an interrupted turn

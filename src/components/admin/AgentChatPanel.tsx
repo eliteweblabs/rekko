@@ -1065,7 +1065,7 @@ function createChatAdapter(
   onStreamedProgress: (progress: AgentProgress | null) => void,
   pendingMentionsRef: RefObject<ChatMention[]>,
   onTurnNoticeRef: RefObject<(notice: ChatTurnNotice | null) => void>,
-  forceSteerQueueRef: RefObject<boolean>,
+  pendingSteerRef: RefObject<boolean>,
 ): ChatModelAdapter {
   return {
     async *run(options) {
@@ -1104,14 +1104,17 @@ function createChatAdapter(
       resumeAgentTones();
       emitProgress({ phase: 'thinking', round: 1 });
       try {
-        let queueWhileBusy = forceSteerQueueRef.current;
-        forceSteerQueueRef.current = false;
-        if (!queueWhileBusy) {
-          const preStatus = await fetchRunProgress(threadId);
-          queueWhileBusy = isChatRunActive(preStatus);
+        const steerRequested = pendingSteerRef.current;
+        pendingSteerRef.current = false;
+        if (steerRequested) {
+          await cancelChatTurn(threadId);
         }
 
-        const postChatMessage = (queue: boolean) =>
+        const preStatus = await fetchRunProgress(threadId);
+        const serverBusy = isChatRunActive(preStatus);
+        const queueWhileBusy = serverBusy && !steerRequested;
+
+        const postChatMessage = (opts: { queue?: boolean; steer?: boolean }) =>
           fetch(`/api/chats/${encodeURIComponent(threadId)}`, {
             method: 'POST',
             headers: {
@@ -1123,14 +1126,18 @@ function createChatAdapter(
               images,
               docs,
               stream: true,
-              ...(queue ? { queue: true } : {}),
+              ...(opts.queue ? { queue: true } : {}),
+              ...(opts.steer ? { steer: true } : {}),
               ...(mentions.length ? { mentions } : {}),
               ...(model ? { model } : {}),
             }),
             signal: options.abortSignal,
           });
 
-        let res = await postChatMessage(queueWhileBusy);
+        let res = await postChatMessage({
+          queue: queueWhileBusy,
+          steer: steerRequested,
+        });
 
         if (!res.ok) {
           let errData: {
@@ -1144,8 +1151,13 @@ function createChatAdapter(
           } catch {
             /* ignore */
           }
-          if (errData.run_in_progress && (res.status === 409 || res.status === 503) && !queueWhileBusy) {
-            res = await postChatMessage(true);
+          if (
+            errData.run_in_progress &&
+            (res.status === 409 || res.status === 503) &&
+            !queueWhileBusy &&
+            !steerRequested
+          ) {
+            res = await postChatMessage({ queue: true });
             if (res.ok) {
               errData = {};
             } else {
@@ -1328,7 +1340,8 @@ function createChatAdapter(
         if (data.queued && data.userMessage?.content) {
           onTurnNoticeRef.current?.({
             tone: 'info',
-            message: 'Follow-up queued — it will run when the current turn finishes.',
+            message:
+              'Follow-up saved — it will run when the current turn finishes (or tap Stop to skip ahead).',
             action: 'stop',
           });
           if (data.title) propsRef.current?.onTitleUpdate?.(data.title);
@@ -1755,7 +1768,7 @@ function SteerQueueFlush({
   recovering: boolean;
   deployChatLocked: boolean;
 }) {
-  const composer = useComposerRuntime();
+  const runtime = useThreadRuntime();
   const isRunning = useAuiState((s) => s.thread.isRunning);
   const messages = useAuiState((s) => s.thread.messages);
   const flushedForRef = useRef('');
@@ -1772,15 +1785,15 @@ function SteerQueueFlush({
     let cancelled = false;
     void fetchRunProgress(threadId).then((status) => {
       if (cancelled || isChatRunActive(status)) return;
-      if (!composer.getState().canSend) return;
+      if (!last.id) return;
       flushedForRef.current = key;
       clearSteerPendingFlush(threadId);
-      void composer.send();
+      runtime.startRun({ parentId: last.id, runConfig: {} });
     });
     return () => {
       cancelled = true;
     };
-  }, [composer, deployChatLocked, isRunning, messages, recovering, threadId]);
+  }, [deployChatLocked, isRunning, messages, recovering, runtime, threadId]);
 
   return null;
 }
@@ -2944,7 +2957,7 @@ function ClaudeComposer({
   onQueuedChange,
   turnNotice = null,
   onDismissTurnNotice,
-  forceSteerQueueRef,
+  pendingSteerRef,
 }: {
   propsRef: RefObject<AgentChatPanelProps>;
   commands: AgentHelperCommand[];
@@ -2963,10 +2976,11 @@ function ClaudeComposer({
   onQueuedChange?: (queued: boolean) => void;
   turnNotice?: ChatTurnNotice | null;
   onDismissTurnNotice?: () => void;
-  forceSteerQueueRef: RefObject<boolean>;
+  pendingSteerRef: RefObject<boolean>;
 }) {
   const fieldRef = useRef<ComposerFieldHandle | null>(null);
   const composer = useComposerRuntime();
+  const threadRuntime = useThreadRuntime();
   const isRunning = useAuiState((s) => s.thread.isRunning);
   const lastAssistantText = useAuiState((s) => lastAssistantMessageText(s.thread.messages));
   const replyOnScreen = lastAssistantText.trim().length > 0;
@@ -2974,11 +2988,9 @@ function ClaudeComposer({
     Boolean(turnNotice?.action === 'stop') || isRunning || Boolean(useExternalProgress);
   const serverRunActive = useServerRunActive(threadId, pollServerRunFast);
   const showRunning = isRunning || Boolean(useExternalProgress) || serverRunActive;
-  // ComposerPrimitive.Send is itself disabled while isRunning. Once a reply is
-  // visible, do not hard-lock our button — the user can interrupt and send.
-  const sendBlocked = deployChatLocked || queuedSend || (showRunning && !replyOnScreen);
-  /** Send while a turn is active — queues a follow-up instead of cancelling the run. */
-  const canSteerSend = showRunning && replyOnScreen && !deployChatLocked && !queuedSend;
+  const sendBlocked = deployChatLocked || queuedSend;
+  /** Send during an active turn — stop the current run and continue with the new message. */
+  const steerOnSend = showRunning && !deployChatLocked && !queuedSend;
   const { elapsed } = useAgentRunStatus(
     threadId,
     externalProgress ?? null,
@@ -3004,10 +3016,20 @@ function ClaudeComposer({
     if (composer.getState().canSend) void composer.send();
   }, [composer, threadId]);
   const steerAndSend = useCallback(() => {
-    forceSteerQueueRef.current = true;
+    pendingSteerRef.current = true;
+    void cancelChatTurn(threadId);
+    try {
+      threadRuntime.cancelRun();
+    } catch {
+      /* already idle */
+    }
     sendNow();
-  }, [forceSteerQueueRef, sendNow]);
-  const helpers = useSlashHelpers(propsRef, commands, fieldRef, sendBlocked, sendNow);
+  }, [pendingSteerRef, sendNow, threadId, threadRuntime]);
+  const fireSend = useCallback(() => {
+    if (steerOnSend) steerAndSend();
+    else sendNow();
+  }, [sendNow, steerAndSend, steerOnSend]);
+  const helpers = useSlashHelpers(propsRef, commands, fieldRef, sendBlocked, fireSend);
   const mentions = useMentions(pendingMentionsRef, fieldRef);
   const lastUserText = useAuiState((s) => lastUserMessageText(s.thread.messages));
   useCapComposerAttachments();
@@ -3064,12 +3086,11 @@ function ClaudeComposer({
       e.preventDefault();
       if (!composer.getState().canSend) return;
       sentByTouchRef.current = true;
-      if (canSteerSend) steerAndSend();
-      else sendNow();
+      fireSend();
     };
     btn.addEventListener('touchstart', onTouchStart, { passive: false });
     return () => btn.removeEventListener('touchstart', onTouchStart);
-  }, [canSteerSend, sendBlocked, sendNow, steerAndSend]);
+  }, [composer, fireSend, sendBlocked]);
 
   return (
     <div className={`aui-composer-shell${centered ? ' aui-composer-shell-centered' : ''}`}>
@@ -3175,10 +3196,10 @@ function ClaudeComposer({
                 ? 'Queued — this will send when the new version is live'
                 : deployChatLocked
                   ? 'Keep typing — send unlocks when the new version is live'
-                  : canSteerSend
-                    ? 'Send queues a follow-up — Stop cancels the current turn'
+                  : steerOnSend
+                    ? 'Send stops the current turn and continues with your update · Stop cancels without sending'
                     : showRunning
-                      ? `Keep typing — send unlocks when the agent finishes · ${elapsed}`
+                      ? `Working · ${elapsed}`
                       : 'Type @ to mention · / for commands · paste or drag images, SVGs, PDFs, PowerPoint, JSON, Markdown, or ZIP files'}
             </span>
             <span className="aui-composer-actions">
@@ -3204,12 +3225,12 @@ function ClaudeComposer({
                 >
                   <SendIcon />
                 </button>
-              ) : canSteerSend ? (
+              ) : steerOnSend ? (
                 <button
                   ref={sendBtnRef}
                   type="button"
                   className="aui-composer-send"
-                  aria-label="Queue a follow-up for after the current turn"
+                  aria-label="Send and steer — stop the current turn and continue with this message"
                   onPointerDown={(e) => e.preventDefault()}
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={(e) => {
@@ -3218,7 +3239,7 @@ function ClaudeComposer({
                       e.preventDefault();
                       return;
                     }
-                    steerAndSend();
+                    fireSend();
                   }}
                 >
                   <SendIcon />
@@ -3640,7 +3661,7 @@ function AgentChatThreadBody({
   streamedProgress,
   deployChatLock,
   pendingMentionsRef,
-  forceSteerQueueRef,
+  pendingSteerRef,
   queuedSend,
   onQueuedChange,
   turnNotice,
@@ -3652,7 +3673,7 @@ function AgentChatThreadBody({
   streamedProgress: AgentProgress | null;
   deployChatLock: DeployChatLockState;
   pendingMentionsRef: RefObject<ChatMention[]>;
-  forceSteerQueueRef: RefObject<boolean>;
+  pendingSteerRef: RefObject<boolean>;
   queuedSend: boolean;
   onQueuedChange: (queued: boolean) => void;
   turnNotice: ChatTurnNotice | null;
@@ -3762,7 +3783,7 @@ function AgentChatThreadBody({
             onFocusInputReady={onFocusInputReady}
             turnNotice={turnNotice}
             onDismissTurnNotice={onDismissTurnNotice}
-            forceSteerQueueRef={forceSteerQueueRef}
+            pendingSteerRef={pendingSteerRef}
           />
         </div>
       </AuiIf>
@@ -3810,7 +3831,7 @@ function AgentChatThreadBody({
                 onFocusInputReady={onFocusInputReady}
                 turnNotice={turnNotice}
                 onDismissTurnNotice={onDismissTurnNotice}
-                forceSteerQueueRef={forceSteerQueueRef}
+                pendingSteerRef={pendingSteerRef}
               />
               <p className="aui-disclaimer">{readCompanyBrandName()} can make mistakes. Double-check results.</p>
             </div>
@@ -3873,7 +3894,7 @@ function AgentChatThread({
   const [turnNotice, setTurnNotice] = useState<ChatTurnNotice | null>(null);
   const onTurnNoticeRef = useRef<(notice: ChatTurnNotice | null) => void>(() => {});
   onTurnNoticeRef.current = setTurnNotice;
-  const forceSteerQueueRef = useRef(false);
+  const pendingSteerRef = useRef(false);
   const adapter = useMemo(
     () =>
       createChatAdapter(
@@ -3882,7 +3903,7 @@ function AgentChatThread({
         setStreamedProgress,
         pendingMentionsRef,
         onTurnNoticeRef,
-        forceSteerQueueRef,
+        pendingSteerRef,
       ),
     [threadId, propsRef, setStreamedProgress],
   );
@@ -3893,6 +3914,7 @@ function AgentChatThread({
   );
 
   const runtime = useLocalRuntime(adapter, {
+    unstable_enableMessageQueue: true,
     initialMessages: propsRef.current?.initialMessages.map(storedToThreadMessage),
     adapters: { attachments: attachmentAdapter },
   });
@@ -3922,7 +3944,7 @@ function AgentChatThread({
           streamedProgress={streamedProgress}
           deployChatLock={deployChatLock}
           pendingMentionsRef={pendingMentionsRef}
-          forceSteerQueueRef={forceSteerQueueRef}
+          pendingSteerRef={pendingSteerRef}
           queuedSend={queuedSend}
           onQueuedChange={setQueuedSend}
           turnNotice={turnNotice}
