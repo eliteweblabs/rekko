@@ -53,8 +53,9 @@ import {
   createClientDetailPanel,
   mountClientVaultSection,
   mountClientAnalyticsSection,
+  mountClientEmailSection,
   flushClientVaultSave,
-} from './work-panel.js?v=20260830a';
+} from './work-panel.js?v=20261101a';
 import { createDetailChrome, createDetailFormScroll, createDetailPanelBody } from './detail-tabs.js?v=20260807b';
 import { mountListFilterTabs } from './filter-tabs.js?v=20260813a';
 import { mountAddressAutocomplete } from './schedule-panel.js?v=20260831a';
@@ -75,6 +76,7 @@ const CLIENT_DETAIL_TAB_IDS = new Set([
   'profile',
   'branding',
   'notes',
+  'email',
   'projects',
   'vault',
   'analytics',
@@ -2278,6 +2280,14 @@ function renderEditClientForm(pane) {
       const projectsPanel = createClientDetailPanel('projects', activeTab);
       mountClientWorkSection(projectsPanel, uid);
       scroll.appendChild(projectsPanel);
+
+      if (emailInboxEnabled()) {
+        const emailPanel = createClientDetailPanel('email', activeTab);
+        mountClientEmailSection(emailPanel, uid, {
+          getContactEmail: () => emailInput.value.trim(),
+        });
+        scroll.appendChild(emailPanel);
+      }
 
       const vaultPanel = createClientDetailPanel('vault', activeTab);
       mountClientVaultSection(vaultPanel, uid, clientState.draft.data || []);

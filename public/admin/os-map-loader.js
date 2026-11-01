@@ -165,7 +165,7 @@ import {
   syncWorkAuditingPoll,
   stopWorkAuditingPoll,
   deleteWork,
-} from './work-panel.js?v=20260830a';
+} from './work-panel.js?v=20261101a';
 import {
   initTodoPanel,
   todoState,
@@ -230,7 +230,7 @@ import {
   geocodeClientAddressPreview,
   startNewClient,
   confirmDiscardChanges,
-} from './clients-panel.js?v=20260903a';
+} from './clients-panel.js?v=20261101a';
 import { mountClientSetupWizard, reopenClientSetupWizard } from './client-setup-panel.js?v=20260831a';
 import {
   ensureShakePermission,

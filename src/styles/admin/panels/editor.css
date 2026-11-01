@@ -4048,6 +4048,28 @@ button.de-placeholder-action:active {
   width: 100%;
   max-width: 340px;
 }
+.cl-email-list-host {
+  width: 100%;
+}
+.cl-email-preview-list {
+  margin-top: 0.35rem;
+}
+.cl-email-preview-item {
+  flex-wrap: wrap;
+  align-items: flex-start;
+  text-align: left;
+}
+.cl-email-preview-snippet {
+  flex: 1 1 100%;
+  margin-top: 0.2rem;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  color: var(--muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 .cl-website-field:has(.de-input.de-field-valid),
 .cl-email-field:has(.de-input.de-field-valid) {
   border-color: #22c55e;
@@ -4057,11 +4079,17 @@ button.de-placeholder-action:active {
   border-color: #ef4444;
 }
 .cl-website-open-btn,
-.cl-email-open-btn,
-.control-field > .input-copy-btn.ios-icon-btn {
+.cl-email-open-btn {
   width: calc(var(--control-h) - var(--control-inset) * 2);
   height: calc(var(--control-h) - var(--control-inset) * 2);
   min-width: calc(var(--control-h) - var(--control-inset) * 2);
+  padding: 0;
+}
+.control-field > .input-copy-btn.ios-icon-btn {
+  width: var(--icon-btn-box);
+  height: var(--icon-btn-box);
+  min-width: var(--icon-btn-box);
+  min-height: var(--icon-btn-box);
   padding: 0;
 }
 .cl-website-open-btn[disabled],

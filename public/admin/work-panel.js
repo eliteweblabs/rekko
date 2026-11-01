@@ -41,10 +41,10 @@ import {
 import { openReaveShareSheet } from './chat-panel.js?v=20260824a';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, resolveContactAuthorName, resolveContactBrandIconUrl, contactAuthorDisplayParts, contactAuthorDisplayLabel, contactAuthorDisplayHtml, mountPanelSkeleton, skeletonHtml, emailInboxEnabled } from './shared.js?v=20261031a';
 import { postTitle, postLower, postNew, postTitleLabel } from './post-alias.js?v=20260805a';
-import { clientState, clientMapController } from './clients-panel.js?v=20260830a';
+import { clientState, clientMapController } from './clients-panel.js?v=20261101a';
 import { mountListFilterTabs } from './filter-tabs.js?v=20260813a';
 import { mountAddressAutocomplete } from './schedule-panel.js?v=20260831a';
-import { geocodeClientAddressPreview } from './clients-panel.js?v=20260830a';
+import { geocodeClientAddressPreview } from './clients-panel.js?v=20261101a';
 import {
   createDetailChrome,
   createDetailFormScroll,
@@ -1690,6 +1690,7 @@ const CLIENT_DETAIL_TABS = [
   { id: 'profile', label: 'Profile' },
   { id: 'branding', label: 'Branding' },
   { id: 'notes', label: 'Notes' },
+  { id: 'email', label: 'Email', feature: 'email_inbox' },
   { id: 'projects', label: postTitle(2) },
   { id: 'vault', label: 'Vault' },
   { id: 'analytics', label: 'Analytics', feature: 'analytic_audit', clientOnly: true },
@@ -1880,6 +1881,11 @@ function showClientDetailPanel(pane, tabId) {
       if (id === 'profile') {
         setTimeout(() => clientMapController?.resize?.(), 60);
       }
+      if (id === 'email') {
+        pane
+          .querySelector('.cl-email-section')
+          ?.refreshClientEmails?.();
+      }
     },
   });
 }
@@ -1967,6 +1973,116 @@ function scheduleClientVaultSave(uid, getData, activeEl) {
       shell.showChatToast(e.message || 'Vault save failed');
     }
   }, 650);
+}
+
+async function mountClientEmailSection(parent, uid, opts = {}) {
+  const getContactEmail =
+    typeof opts.getContactEmail === 'function' ? opts.getContactEmail : () => '';
+
+  const wrap = createDetailPanelBody('cl-email-section');
+  parent.appendChild(wrap);
+
+  let events = [];
+  let search = '';
+
+  const listHost = document.createElement('div');
+  listHost.className = 'cl-email-list-host';
+
+  listHost.innerHTML = `<p class="dash-empty">Loading mail…</p>`;
+
+  const { el: searchBar } = listSearchSubheader({
+    search: {
+      value: '',
+      placeholder: 'Search mail…',
+      ariaLabel: 'Search contact email',
+      onInput: (value) => {
+        search = value;
+        renderList();
+      },
+    },
+    below: listHost,
+  });
+  wrap.appendChild(searchBar);
+
+  function filteredEvents() {
+    return events.filter((ev) =>
+      matchesListSearch(search, ev.from, ev.subject, ev.summary, ev.bodySnippet),
+    );
+  }
+
+  function renderList() {
+    listHost.innerHTML = '';
+    const rows = filteredEvents();
+    if (!rows.length) {
+      listHost.appendChild(
+        createCenteredListEmpty({
+          text: search.trim()
+            ? 'No mail matches your search.'
+            : 'No mail linked to this contact yet.',
+        }),
+      );
+      return;
+    }
+    const list = document.createElement('div');
+    list.className = 'wk-related-list cl-email-preview-list';
+    for (const ev of rows) {
+      const row = document.createElement('button');
+      row.type = 'button';
+      row.className = 'wk-related-item cl-email-preview-item';
+      const preview = (ev.summary || ev.bodySnippet || ev.subject || '(no preview)').trim();
+      row.innerHTML =
+        `<span class="wk-related-kind">${escHtml(ev.from || 'Unknown')}</span>` +
+        `<span class="wk-related-label">${escHtml(ev.subject || '(no subject)')}</span>` +
+        `<span class="wk-related-meta">${escHtml(
+          shell.formatChatDate ? shell.formatChatDate(ev.receivedAt) : new Date(ev.receivedAt).toLocaleDateString(),
+        )}</span>` +
+        `<span class="cl-email-preview-snippet">${escHtml(preview)}</span>`;
+      row.addEventListener('click', () => {
+        if (typeof shell.navigateToEmail === 'function') shell.navigateToEmail(ev.id);
+      });
+      list.appendChild(row);
+    }
+    listHost.appendChild(list);
+  }
+
+  try {
+    const email = getContactEmail();
+    const qs = new URLSearchParams({ limit: '150' });
+    if (email) qs.set('email', email);
+    const res = await adminFetch(`/api/clients/${encodeURIComponent(uid)}/emails?${qs}`, {
+      cache: 'no-store',
+    });
+    const data = await readApiJson(res);
+    if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    events = Array.isArray(data.events) ? data.events : [];
+    renderList();
+  } catch (e) {
+    listHost.innerHTML = '';
+    listHost.appendChild(
+      createCenteredListEmpty({ text: e.message || 'Could not load mail for this contact.' }),
+    );
+  }
+
+  wrap.refreshClientEmails = async () => {
+    listHost.innerHTML = `<p class="dash-empty">Loading mail…</p>`;
+    try {
+      const email = getContactEmail();
+      const qs = new URLSearchParams({ limit: '150' });
+      if (email) qs.set('email', email);
+      const res = await adminFetch(`/api/clients/${encodeURIComponent(uid)}/emails?${qs}`, {
+        cache: 'no-store',
+      });
+      const data = await readApiJson(res);
+      if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      events = Array.isArray(data.events) ? data.events : [];
+      renderList();
+    } catch (err) {
+      listHost.innerHTML = '';
+      listHost.appendChild(
+        createCenteredListEmpty({ text: err.message || 'Could not load mail for this contact.' }),
+      );
+    }
+  };
 }
 
 async function mountClientAnalyticsSection(parent, uid) {
@@ -5632,6 +5748,7 @@ export {
   createClientDetailPanel,
   mountClientVaultSection,
   mountClientAnalyticsSection,
+  mountClientEmailSection,
   flushClientVaultSave,
   syncWorkAuditingPoll,
   stopWorkAuditingPoll,

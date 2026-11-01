@@ -1026,6 +1026,110 @@ export async function storeListEmailInbox(
   return dropMissingJobLinks(rows);
 }
 
+const CONTACT_EMAIL_MATCH_RE = /[^\s<>"',;]+@[^\s<>"',;]+/gi;
+
+function normalizeContactEmailMatch(raw: string): string {
+  return raw.trim().toLowerCase();
+}
+
+function addressLineMatchesContactEmail(line: string, emailNorm: string): boolean {
+  if (!emailNorm) return false;
+  const text = String(line || '');
+  if (!text) return false;
+  if (text.toLowerCase().includes(emailNorm)) return true;
+  CONTACT_EMAIL_MATCH_RE.lastIndex = 0;
+  for (const match of text.matchAll(CONTACT_EMAIL_MATCH_RE)) {
+    if (match[0]?.toLowerCase() === emailNorm) return true;
+  }
+  return false;
+}
+
+function inboxRecordMatchesContact(
+  record: EmailInboxRecord,
+  contactUid: string,
+  contactEmail: string,
+): boolean {
+  const uid = contactUid.trim();
+  if (uid && record.contactUid === uid) return true;
+  const emailNorm = normalizeContactEmailMatch(contactEmail);
+  if (!emailNorm) return false;
+  if (addressLineMatchesContactEmail(record.from, emailNorm)) return true;
+  for (const to of record.to || []) {
+    if (addressLineMatchesContactEmail(to, emailNorm)) return true;
+  }
+  return false;
+}
+
+async function listContactFromPg(
+  contactUid: string,
+  contactEmail: string,
+  limit: number,
+): Promise<EmailInboxRecord[]> {
+  try {
+    const pool = await ensureSchema();
+    if (!pool) return [];
+    const uid = contactUid.trim();
+    const emailNorm = normalizeContactEmailMatch(contactEmail);
+    const emailPattern = emailNorm ? `%${emailNorm}%` : '';
+    const { rows } = await pool.query(
+      `SELECT ${INBOX_LIST_SELECT}
+       FROM email_inbox
+       WHERE category NOT IN ('junk', 'auto_deleted')
+         AND (
+           ($1::text <> '' AND contact_uid = $1)
+           OR (
+             $2::text <> ''
+             AND (
+               LOWER(from_address) LIKE $2
+               OR EXISTS (
+                 SELECT 1
+                 FROM jsonb_array_elements_text(COALESCE(to_addrs, '[]'::jsonb)) AS t(addr)
+                 WHERE LOWER(t.addr) LIKE $2
+               )
+             )
+           )
+         )
+       ORDER BY received_at DESC
+       LIMIT $3`,
+      [uid, emailPattern, limit],
+    );
+    return rows.map(rowToRecord);
+  } catch (e) {
+    console.error('[email-inbox] contact list failed', e);
+    return [];
+  }
+}
+
+function listContactFromFile(
+  contactUid: string,
+  contactEmail: string,
+  limit: number,
+): EmailInboxRecord[] {
+  const path = inboxFilePath();
+  if (!existsSync(path)) return [];
+  const uid = contactUid.trim();
+  return parseFileEvents(readFileSync(path, 'utf8'))
+    .filter((e) => {
+      if (e.category === 'junk' || e.category === 'auto_deleted') return false;
+      return inboxRecordMatchesContact(e, uid, contactEmail);
+    })
+    .sort((a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime())
+    .slice(0, limit);
+}
+
+/** Inbound mail for a contact (uid link and/or address match). */
+export async function storeListEmailInboxForContact(
+  contactUid: string,
+  contactEmail: string,
+  limit = 100,
+): Promise<EmailInboxRecord[]> {
+  const cap = Math.min(Math.max(Number(limit) || 100, 1), 500);
+  const rows = databaseUrl()
+    ? await listContactFromPg(contactUid, contactEmail, cap)
+    : listContactFromFile(contactUid, contactEmail, cap);
+  return dropMissingJobLinks(rows);
+}
+
 const RECEIPT_SCAN_SELECT = `${INBOX_LIST_SELECT}, body_text`;
 
 async function listReceiptScanFromPg(limit: number, since?: Date): Promise<EmailInboxRecord[]> {
