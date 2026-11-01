@@ -32,8 +32,15 @@
   color: var(--pack-bark);
 }
 
-.pack a {
+.pack a:where(:not([class*="pack-btn"])) {
   color: inherit;
+  text-decoration: none;
+}
+
+.pack-btn,
+.pack-btn-primary,
+.pack-btn-ghost,
+.pack-btn--ghost {
   text-decoration: none;
 }
 
@@ -197,38 +204,68 @@
   margin-top: 1.5rem;
 }
 
+/* Single CTA system — hero, header, services, speed dial, wall actions */
+.pack-btn,
 .pack-btn-primary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 0.25rem;
+  border: none;
   border-radius: 999px;
   background: var(--pack-gold);
   color: var(--pack-bark);
   padding: 0.75rem 1.25rem;
+  font-family: var(--pack-font-sans);
   font-size: 0.875rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   box-shadow: 0 8px 0 var(--pack-brick);
+  cursor: pointer;
 }
 
+.pack-btn--sm,
+.pack-btn-primary.pack-btn--sm {
+  padding: 0.5rem 1rem;
+  font-size: 0.75rem;
+  box-shadow: 0 6px 0 var(--pack-brick);
+}
+
+.pack-btn--stack {
+  flex-direction: column;
+  width: 100%;
+  min-height: 3.25rem;
+}
+
+.pack-btn--stack svg {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex-shrink: 0;
+}
+
+.pack-btn:active,
 .pack-btn-primary:active {
   transform: translateY(2px);
   box-shadow: none;
 }
 
-.pack-btn-ghost {
+.pack-btn-ghost,
+.pack-btn--ghost {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border-radius: 999px;
   border: 2px solid rgb(229 168 54 / 0.7);
+  background: transparent;
   color: var(--pack-gold);
   padding: 0.75rem 1.25rem;
+  font-family: var(--pack-font-sans);
   font-size: 0.875rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
+  cursor: pointer;
 }
 
 .pack-hero__visual {
@@ -468,24 +505,8 @@
   color: var(--pack-gold);
 }
 
-.pack-service__book {
-  display: inline-block;
+.pack-service .pack-btn {
   margin-top: 1.25rem;
-  border: none;
-  border-radius: 999px;
-  padding: 0.5rem 1rem;
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  cursor: pointer;
-  background: var(--pack-bark);
-  color: var(--pack-gold);
-}
-
-.pack-service--featured .pack-service__book {
-  background: var(--pack-gold);
-  color: var(--pack-bark);
 }
 
 .pack-wall-head {
@@ -505,27 +526,12 @@
 .pack-wall-actions {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 0.5rem;
 }
 
-.pack-wall-actions button,
-.pack-wall-actions a {
-  border-radius: 999px;
-  padding: 0.625rem 1rem;
-  font-size: 0.875rem;
-  font-weight: 700;
-}
-
-.pack-wall-actions button {
-  border: none;
-  background: var(--pack-gold);
-  color: var(--pack-bark);
-  cursor: pointer;
-}
-
-.pack-wall-actions a {
-  border: 2px solid var(--pack-gold);
-  color: var(--pack-gold);
+.pack-wall-actions .pack-btn--sm {
+  box-shadow: 0 4px 0 var(--pack-brick);
 }
 
 .pack-masonry {
@@ -741,45 +747,12 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-.pack-speed-dial__grid a {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  border-radius: 1rem;
-  padding: 0.625rem 0.5rem;
-  font-size: 0.6875rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+.pack-speed-dial__grid .pack-btn {
+  box-shadow: 0 4px 0 var(--pack-brick);
 }
 
-.pack-speed-dial__grid svg {
-  width: 1.25rem;
-  height: 1.25rem;
-}
-
-.pack-speed-dial__grid span {
-  margin-top: 0.125rem;
-}
-
-.pack-speed-dial__book {
-  background: var(--pack-bark);
-  color: var(--pack-gold);
-}
-
-.pack-speed-dial__directions {
-  background: var(--pack-gold);
-  color: var(--pack-bark);
-}
-
-.pack-speed-dial__call {
-  background: var(--pack-ember);
-  color: var(--pack-cream);
-}
-
-.pack-speed-dial__sms {
-  background: var(--pack-gold-light);
-  color: var(--pack-bark);
+.pack-header__book {
+  flex-shrink: 0;
 }
 
 .pack-sheet {

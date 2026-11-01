@@ -36,14 +36,18 @@
       "items": [
         {
           "label": "Grooming",
-          "kicker": "Spa day",
-          "description": "Bath, brush, and a little spa.",
+          "kicker": "Bath, brush, and a little spa",
+          "description": "From a quick tidy to a full fluff. Send a photo of your pup and we'll quote a calm, one-on-one groom — no warehouse conveyor belt.",
+          "prices": ["Bath & brush from $45", "Full grooms quoted from a photo"],
+          "featured": true,
           "bookHref": "/form/schedule"
         },
         {
           "label": "Sitting & boarding",
-          "kicker": "Stay with us",
-          "description": "Home-like, not kennel-like.",
+          "kicker": "Home-like, not kennel-like",
+          "description": "Overnight stays and in-home sitting so your dog keeps their routine. Comfortable, supervised, and actually fun — the pack version of a sleepover.",
+          "prices": ["Overnight boarding — text for dates", "In-home sitting — custom quote"],
+          "featured": true,
           "bookHref": "/form/schedule"
         },
         {
@@ -56,8 +60,7 @@
           "label": "Pack adventures",
           "kicker": "Trails",
           "description": "Private land. Real trails.",
-          "bookHref": "/form/schedule",
-          "featured": true
+          "bookHref": "/form/schedule"
         },
         {
           "label": "Training",

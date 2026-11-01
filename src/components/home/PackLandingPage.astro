@@ -69,6 +69,8 @@ const navLinks = pack.nav?.length
       { href: `#${wall.id || "wall"}`, label: "Patients" },
       { href: "#about", label: "About" },
     ];
+const navPrimary = navLinks.filter((link) => link.primary);
+const navRegular = navLinks.filter((link) => !link.primary);
 
 const serviceItems =
   services?.items?.map((item) => {
@@ -126,10 +128,17 @@ function packHeadlineLine(raw: string): string {
         <span class="pack-header__name">{brandName}</span>
       </a>
       <nav class="pack-header__nav" aria-label="Site">
-        {navLinks.map((link) => (
+        {navRegular.map((link) => (
           <a href={link.href}>{link.label}</a>
         ))}
       </nav>
+      {
+        navPrimary.map((link) => (
+          <a class="pack-btn pack-btn--sm pack-header__book" href={link.href}>
+            {link.label}
+          </a>
+        ))
+      }
     </div>
   </header>
 
@@ -164,8 +173,8 @@ function packHeadlineLine(raw: string): string {
             )
           }
           <div class="pack-hero__ctas">
-            <a class="pack-btn-primary" href={primaryCta.href}>{primaryCta.label}</a>
-            <a class="pack-btn-ghost" href={secondaryCta.href}>{secondaryCta.label}</a>
+            <a class="pack-btn pack-btn-primary" href={primaryCta.href}>{primaryCta.label}</a>
+            <a class="pack-btn pack-btn-ghost" href={secondaryCta.href}>{secondaryCta.label}</a>
           </div>
         </div>
         {
@@ -259,13 +268,13 @@ function packHeadlineLine(raw: string): string {
                     }
                     {
                       service.bookHref.startsWith("/") || service.bookHref.startsWith("#") ? (
-                        <a class="pack-service__book" href={service.bookHref}>
+                        <a class="pack-btn pack-btn--sm" href={service.bookHref}>
                           Schedule {service.name.toLowerCase()}
                         </a>
                       ) : (
                         <button
                           type="button"
-                          class="pack-service__book"
+                          class="pack-btn pack-btn--sm"
                           data-book={service.name}
                         >
                           Schedule {service.name.toLowerCase()}
@@ -304,13 +313,13 @@ function packHeadlineLine(raw: string): string {
                 hashtag || instagramUrl ? (
                   <div class="pack-wall-actions">
                     {hashtag ? (
-                      <button type="button" id="pack-copy-tag" data-hashtag={hashtag}>
+                      <button type="button" class="pack-btn pack-btn--sm" id="pack-copy-tag" data-hashtag={hashtag}>
                         Copy #{hashtag}
                       </button>
                     ) : null}
                     {
                       instagramUrl ? (
-                        <a href={instagramUrl} target="_blank" rel="noreferrer">
+                        <a class="pack-btn pack-btn-ghost pack-btn--sm" href={instagramUrl} target="_blank" rel="noreferrer">
                           Open Instagram
                         </a>
                       ) : null
@@ -344,7 +353,7 @@ function packHeadlineLine(raw: string): string {
                   </ol>
                   {
                     instagramUrl ? (
-                      <a class="pack-btn-primary" href={instagramUrl} target="_blank" rel="noreferrer" style="margin-top:1.25rem;display:inline-flex;">
+                      <a class="pack-btn pack-btn-primary pack-btn--sm" href={instagramUrl} target="_blank" rel="noreferrer" style="margin-top:1.25rem;">
                         {instagram ? `Tag @${instagram}` : "Open Instagram"}
                       </a>
                     ) : null
@@ -442,7 +451,7 @@ function packHeadlineLine(raw: string): string {
 
   <nav class="pack-speed-dial" aria-label="Quick actions">
     <div class="pack-speed-dial__grid">
-      <a class="pack-speed-dial__book" href={scheduleUrl}>
+      <a class="pack-btn pack-btn--sm pack-btn--stack" href={scheduleUrl}>
         <!-- IOS_ICONS.calendar — keep in sync with public/admin/admin-ui.js -->
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
           <rect x="3" y="4" width="18" height="18" rx="2"></rect>
@@ -453,7 +462,7 @@ function packHeadlineLine(raw: string): string {
       {
         directionsHref ? (
           <a
-            class="pack-speed-dial__directions"
+            class="pack-btn pack-btn--sm pack-btn--stack"
             href={directionsHref}
             target="_blank"
             rel="noreferrer"
@@ -470,13 +479,13 @@ function packHeadlineLine(raw: string): string {
       {
         phoneHref ? (
           <>
-            <a class="pack-speed-dial__sms" href={smsHref}>
+            <a class="pack-btn pack-btn--sm pack-btn--stack" href={smsHref}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
                 <path d="M21 15a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2z"></path>
               </svg>
               <span>SMS</span>
             </a>
-            <a class="pack-speed-dial__call" href={phoneHref}>
+            <a class="pack-btn pack-btn--sm pack-btn--stack" href={phoneHref}>
               <!-- IOS_ICONS.phone -->
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
                 <path d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384"></path>
