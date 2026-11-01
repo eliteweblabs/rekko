@@ -932,7 +932,7 @@ async function runKnowledgeAgentInner(
   }
   if (hasIdeogramImageGen() && isIdeogramConfigured()) {
     sysParts.push(
-      'AI images: use generate_image for custom visuals (Ideogram). Returned URLs are temporary — upload to the media library (/api/media) when the owner needs a permanent asset on the site or in a deck.',
+      'AI images (Ideogram): generate_image or generate_social_post_image / generate_logo_concepts. Set save_to_media true (or call save_image_to_media) so assets land in the media library with permanent publicUrl — temporary Ideogram URLs expire. remix_image, upscale_image, edit_image (inpaint with mask), describe_image, save_image_to_project, list_generated_images also available.',
     );
   }
   if (hasWebsiteEditor()) {

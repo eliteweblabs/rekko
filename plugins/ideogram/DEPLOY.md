@@ -25,5 +25,5 @@ stage: 2
 
 - [ ] Add `ideogram` to install `features[]`
 - [ ] Set `IDEOGRAM_API_KEY` on the Reave App Railway service
-- [ ] Ask the agent to generate a test image (uses `generate_image`)
+- [ ] Ask the agent to generate a test image (`generate_image` with `save_to_media: true`, or `save_image_to_media` after generate)
 - [ ] Set `moduleStatus.ideogram` → `deployed` in install config

@@ -18,8 +18,13 @@ import { workDir } from './workStore';
 
 /** Website-scraped contact logos/icons — kept out of the main library grid. */
 export const MEDIA_LIBRARY_CATEGORY_BRAND_ICON = 'brand-icon';
+/** Ideogram agent saves — browsable via list_generated_images. */
+export const MEDIA_LIBRARY_CATEGORY_IDEOGRAM = 'ideogram';
 
-export type MediaLibraryCategory = typeof MEDIA_LIBRARY_CATEGORY_BRAND_ICON | null;
+export type MediaLibraryCategory =
+  | typeof MEDIA_LIBRARY_CATEGORY_BRAND_ICON
+  | typeof MEDIA_LIBRARY_CATEGORY_IDEOGRAM
+  | null;
 
 export interface MediaLibrarySummary {
   id: string;
@@ -232,7 +237,9 @@ function normalizeSlugField(raw: unknown): string | null {
 
 function normalizeCategoryField(raw: unknown): MediaLibraryCategory {
   const value = String(raw ?? '').trim();
-  return value === MEDIA_LIBRARY_CATEGORY_BRAND_ICON ? MEDIA_LIBRARY_CATEGORY_BRAND_ICON : null;
+  if (value === MEDIA_LIBRARY_CATEGORY_BRAND_ICON) return MEDIA_LIBRARY_CATEGORY_BRAND_ICON;
+  if (value === MEDIA_LIBRARY_CATEGORY_IDEOGRAM) return MEDIA_LIBRARY_CATEGORY_IDEOGRAM;
+  return null;
 }
 
 export function isBrandIconMediaCategory(category: string | null | undefined): boolean {
@@ -984,7 +991,9 @@ function extensionForMediaType(mediaType: string): string {
   }
 }
 
-async function fetchRemoteMediaBytes(url: string): Promise<{ buffer: Buffer; mediaType: string } | null> {
+export async function fetchRemoteMediaBytes(
+  url: string,
+): Promise<{ buffer: Buffer; mediaType: string } | null> {
   const remote = url.trim();
   if (!remote) return null;
   try {
@@ -1017,6 +1026,34 @@ async function fetchRemoteMediaBytes(url: string): Promise<{ buffer: Buffer; med
   } finally {
     clearTimeout(timer);
   }
+}
+
+/** Download a remote image into the admin media library (e.g. Ideogram temporary URLs). */
+export async function storeImportRemoteImageToMediaLibrary(input: {
+  url: string;
+  filename?: string;
+  altText?: string | null;
+  slug?: string | null;
+  uploadedBy?: string | null;
+  category?: MediaLibraryCategory;
+}): Promise<{ ok: true; item: MediaLibrarySummary } | { ok: false; error: string }> {
+  const fetched = await fetchRemoteMediaBytes(input.url);
+  if (!fetched) {
+    return { ok: false, error: 'Could not download image — check the URL or file size (max 10 MB).' };
+  }
+  const ext = extensionForMediaType(fetched.mediaType);
+  const filename =
+    input.filename?.trim() ||
+    `import-${Date.now().toString(36)}.${ext}`;
+  return storeAddMedia({
+    filename,
+    mediaType: fetched.mediaType,
+    dataBase64: fetched.buffer.toString('base64'),
+    altText: input.altText?.trim() || null,
+    uploadedBy: input.uploadedBy ?? null,
+    slug: input.slug ?? null,
+    category: input.category ?? null,
+  });
 }
 
 /** Upsert a website-scraped logo/icon into the Brand Icons collection. */

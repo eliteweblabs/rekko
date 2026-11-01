@@ -559,8 +559,8 @@ export function formatClientWebsiteToolInventory(opts: {
   if (opts.ideogram) {
     lines.push(
       opts.ideogramActive
-        ? '- AI images: generate_image is active (Ideogram). URLs expire — upload to the media library for permanent use.'
-        : '- AI images: module is on; generate_image needs IDEOGRAM_API_KEY.',
+        ? '- AI images: Ideogram tools active (generate_image, save_image_to_media, remix/upscale/edit/describe). Prefer save_to_media for permanent library URLs.'
+        : '- AI images: module is on; Ideogram needs IDEOGRAM_API_KEY.',
     );
   }
   lines.push(
