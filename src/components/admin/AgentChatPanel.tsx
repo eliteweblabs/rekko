@@ -1420,8 +1420,13 @@ function createChatAdapter(
   };
 }
 
-type DeployChatDraftPayload = { threadId: string; text: string; autoSend?: boolean };
-type DeployChatDraftEntry = { text: string; autoSend?: boolean };
+type DeployChatDraftPayload = {
+  threadId: string;
+  text: string;
+  autoSend?: boolean;
+  sendQueue?: string[];
+};
+type DeployChatDraftEntry = { text: string; autoSend?: boolean; sendQueue?: string[] };
 
 type DeployIndicatorPayload = {
   chatLocked?: boolean;
@@ -1469,21 +1474,20 @@ function readDeployChatDraftsMap(): Record<string, DeployChatDraftEntry> {
     if (!parsed || typeof parsed !== 'object') return {};
     // Legacy single-draft shape from the first deploy-lock snapshot.
     if ('threadId' in parsed && typeof parsed.threadId === 'string' && typeof parsed.text === 'string') {
+      const legacy = parsed as DeployChatDraftPayload;
       return {
-        [parsed.threadId]: {
-          text: parsed.text,
-          ...(parsed.autoSend ? { autoSend: true } : {}),
-        },
+        [legacy.threadId]: normalizeDeployChatDraftEntry(legacy),
       };
     }
     const out: Record<string, DeployChatDraftEntry> = {};
     for (const [id, entry] of Object.entries(parsed as Record<string, DeployChatDraftEntry>)) {
-      if (entry && typeof entry.text === 'string') {
-        out[id] = {
-          text: entry.text,
-          ...(entry.autoSend ? { autoSend: true } : {}),
-        };
-      }
+      if (!entry || typeof entry !== 'object') continue;
+      if (typeof entry.text !== 'string' && !Array.isArray(entry.sendQueue)) continue;
+      out[id] = normalizeDeployChatDraftEntry({
+        text: typeof entry.text === 'string' ? entry.text : '',
+        autoSend: entry.autoSend,
+        sendQueue: entry.sendQueue,
+      });
     }
     return out;
   } catch {
@@ -1503,10 +1507,76 @@ function writeDeployChatDraftsMap(map: Record<string, DeployChatDraftEntry>): vo
   }
 }
 
+function normalizeDeployChatDraftEntry(entry: DeployChatDraftEntry): DeployChatDraftEntry {
+  const sendQueue = Array.isArray(entry.sendQueue)
+    ? entry.sendQueue.map((s) => String(s).trim()).filter(Boolean)
+    : [];
+  const autoSend = Boolean(entry.autoSend) || sendQueue.length > 0;
+  return {
+    text: entry.text ?? '',
+    ...(autoSend ? { autoSend: true } : {}),
+    ...(sendQueue.length ? { sendQueue } : {}),
+  };
+}
+
+function getDeployChatSendQueue(threadId: string): string[] {
+  const entry = readDeployChatDraftsMap()[threadId];
+  if (!entry) return [];
+  if (entry.sendQueue?.length) return [...entry.sendQueue];
+  if (entry.autoSend && entry.text.trim()) return [entry.text.trim()];
+  return [];
+}
+
+function hasDeployChatPendingSends(threadId: string): boolean {
+  return getDeployChatSendQueue(threadId).length > 0;
+}
+
+function writeDeployChatDraftEntry(threadId: string, entry: DeployChatDraftEntry | null): void {
+  const all = readDeployChatDraftsMap();
+  if (!entry || (!entry.text.trim() && !entry.sendQueue?.length && !entry.autoSend)) {
+    delete all[threadId];
+  } else {
+    all[threadId] = normalizeDeployChatDraftEntry(entry);
+  }
+  writeDeployChatDraftsMap(all);
+}
+
+function appendDeployChatSendQueue(threadId: string, message: string): void {
+  const trimmed = message.trim();
+  if (!trimmed) return;
+  const all = readDeployChatDraftsMap();
+  const prev = all[threadId];
+  const sendQueue = [...getDeployChatSendQueue(threadId), trimmed];
+  writeDeployChatDraftEntry(threadId, {
+    text: prev?.text ?? '',
+    autoSend: true,
+    sendQueue,
+  });
+}
+
+function shiftDeployChatSendQueue(threadId: string): string | null {
+  const queue = getDeployChatSendQueue(threadId);
+  if (!queue.length) return null;
+  const [first, ...rest] = queue;
+  const all = readDeployChatDraftsMap();
+  const prev = all[threadId];
+  writeDeployChatDraftEntry(threadId, {
+    text: prev?.text ?? '',
+    autoSend: rest.length > 0,
+    sendQueue: rest,
+  });
+  return first;
+}
+
 function readDeployChatDraftPayload(threadId: string): DeployChatDraftPayload | null {
   const entry = readDeployChatDraftsMap()[threadId];
   if (!entry) return null;
-  return { threadId, text: entry.text, autoSend: entry.autoSend };
+  return {
+    threadId,
+    text: entry.text,
+    autoSend: entry.autoSend,
+    sendQueue: entry.sendQueue,
+  };
 }
 
 function saveDeployChatDraft(
@@ -1515,16 +1585,35 @@ function saveDeployChatDraft(
   opts?: { autoSend?: boolean },
 ): void {
   try {
-    // Never wipe a prior snapshot with an empty string (lock timing races).
-    if (!text.trim()) return;
     const all = readDeployChatDraftsMap();
     const prev = all[threadId];
-    const autoSend = opts?.autoSend ?? prev?.autoSend;
-    all[threadId] = { text, ...(autoSend ? { autoSend: true } : {}) };
-    writeDeployChatDraftsMap(all);
+    const sendQueue = prev?.sendQueue;
+    const pendingQueue = getDeployChatSendQueue(threadId);
+    // Never wipe a prior snapshot with an empty string (lock timing races).
+    if (!text.trim() && !pendingQueue.length) return;
+    const autoSend = opts?.autoSend ?? prev?.autoSend ?? pendingQueue.length > 0;
+    writeDeployChatDraftEntry(threadId, {
+      text,
+      ...(autoSend ? { autoSend: true } : {}),
+      ...(sendQueue?.length ? { sendQueue } : pendingQueue.length ? { sendQueue: pendingQueue } : {}),
+    });
   } catch {
     /* private mode / quota */
   }
+}
+
+/** Drop in-progress typing snapshot only — keeps queued sends for after deploy. */
+function clearDeployChatTypingDraft(threadId: string): void {
+  const all = readDeployChatDraftsMap();
+  const prev = all[threadId];
+  if (!prev) return;
+  const sendQueue = prev.sendQueue?.length ? [...prev.sendQueue] : getDeployChatSendQueue(threadId);
+  if (!sendQueue.length) {
+    delete all[threadId];
+    writeDeployChatDraftsMap(all);
+    return;
+  }
+  writeDeployChatDraftEntry(threadId, { text: '', autoSend: true, sendQueue });
 }
 
 function readDeployChatDraft(threadId: string): string | null {
@@ -1625,7 +1714,7 @@ function PendingDraftBoot({
     // Never auto-send here — lock state is unknown on first paint. Queue it
     // so DeployDraftBoot can hold through the deploy and flush when live.
     if (autoSend) {
-      saveDeployChatDraft(threadId, draft, { autoSend: true });
+      appendDeployChatSendQueue(threadId, draft);
       onQueuedChange?.(true);
     }
   }, [autoSend, composer, draft, onQueuedChange, threadId]);
@@ -1666,10 +1755,11 @@ function DeployDraftBoot({
   onQueuedChange?: (queued: boolean) => void;
 }) {
   const composer = useComposerRuntime();
+  const isRunning = useAuiState((s) => s.thread.isRunning);
   const lastUserText = useAuiState((s) => lastUserMessageText(s.thread.messages));
   const wasLockedRef = useRef(deployChatLocked);
   const didInitialRestoreRef = useRef(false);
-  const flushedRef = useRef(false);
+  const flushingRef = useRef(false);
 
   // Snapshot while locked so the hard reload that follows "live" still has the draft.
   useLayoutEffect(() => {
@@ -1681,7 +1771,7 @@ function DeployDraftBoot({
       return;
     }
     saveDeployChatDraft(threadId, text);
-    if (readDeployChatDraftPayload(threadId)?.autoSend) onQueuedChange?.(true);
+    if (hasDeployChatPendingSends(threadId)) onQueuedChange?.(true);
   }, [composer, deployChatLocked, lastUserText, onQueuedChange, threadId]);
 
   useEffect(() => {
@@ -1701,8 +1791,8 @@ function DeployDraftBoot({
           } else {
             const current = composer.getState().text ?? '';
             if (!current.trim()) composer.setText(saved.text);
-            if (saved.autoSend) onQueuedChange?.(true);
-            // Keep autoSend snapshots until the flush effect actually sends.
+            if (hasDeployChatPendingSends(threadId)) onQueuedChange?.(true);
+            // Keep queued sends until the flush effect actually sends.
             else if (!deployChatLocked) clearDeployChatDraft(threadId);
           }
         }
@@ -1711,7 +1801,7 @@ function DeployDraftBoot({
 
     // In-session unlock (no reload): drop a regular typed snapshot. Queued
     // auto-sends stay until the flush effect below fires.
-    if (wasLocked && !deployChatLocked && !readDeployChatDraftPayload(threadId)?.autoSend) {
+    if (wasLocked && !deployChatLocked && !hasDeployChatPendingSends(threadId)) {
       clearDeployChatDraft(threadId);
     }
   }, [composer, deployChatLocked, lastUserText, onQueuedChange, skipRestore, threadId]);
@@ -1729,27 +1819,35 @@ function DeployDraftBoot({
     }
   }, [composer, lastUserText, onQueuedChange, threadId]);
 
-  // Holding pattern: once the deploy lock is known and clear, send a queued
-  // project/email/client handoff that arrived while sending was paused.
+  // Holding pattern: once deploy is live and the thread is idle, send queued
+  // messages (composer taps, email/project handoffs) in order.
   useEffect(() => {
-    if (flushedRef.current || !deployChatLockReady || deployChatLocked) return;
-    const saved = readDeployChatDraftPayload(threadId);
-    if (!saved?.autoSend) return;
-    const text = (composer.getState().text ?? '').trim() || saved.text.trim();
-    if (!text || isSentComposerEcho(text, lastUserText)) {
-      clearDeployChatDraft(threadId);
+    if (!deployChatLockReady || deployChatLocked || isRunning || flushingRef.current) return;
+    const queue = getDeployChatSendQueue(threadId);
+    if (!queue.length) {
       onQueuedChange?.(false);
       return;
     }
-    flushedRef.current = true;
-    if (!(composer.getState().text ?? '').trim()) composer.setText(saved.text);
-    clearDeployChatDraft(threadId);
-    onQueuedChange?.(false);
-    void composer.send();
+    const next = queue[0];
+    if (!next.trim() || isSentComposerEcho(next, lastUserText)) {
+      shiftDeployChatSendQueue(threadId);
+      onQueuedChange?.(hasDeployChatPendingSends(threadId));
+      return;
+    }
+    if (!composer.getState().canSend) return;
+    flushingRef.current = true;
+    shiftDeployChatSendQueue(threadId);
+    composer.setText(next);
+    clearChatComposeDraft(threadId);
+    onQueuedChange?.(hasDeployChatPendingSends(threadId));
+    void Promise.resolve(composer.send()).finally(() => {
+      flushingRef.current = false;
+    });
   }, [
     composer,
     deployChatLockReady,
     deployChatLocked,
+    isRunning,
     lastUserText,
     onQueuedChange,
     threadId,
@@ -2988,9 +3086,14 @@ function ClaudeComposer({
     Boolean(turnNotice?.action === 'stop') || isRunning || Boolean(useExternalProgress);
   const serverRunActive = useServerRunActive(threadId, pollServerRunFast);
   const showRunning = isRunning || Boolean(useExternalProgress) || serverRunActive;
-  const sendBlocked = deployChatLocked || queuedSend;
   /** Send during an active turn — stop the current run and continue with the new message. */
   const steerOnSend = showRunning && !deployChatLocked && !queuedSend;
+  const deployQueueMode = deployChatLocked && !deployLiveReloading;
+  const [deployQueueCount, setDeployQueueCount] = useState(() => getDeployChatSendQueue(threadId).length);
+  useEffect(() => {
+    setDeployQueueCount(getDeployChatSendQueue(threadId).length);
+  }, [queuedSend, deployChatLocked, threadId]);
+  const sendBlocked = deployLiveReloading || (!deployQueueMode && showRunning && !steerOnSend);
   const { elapsed } = useAgentRunStatus(
     threadId,
     externalProgress ?? null,
@@ -3015,6 +3118,23 @@ function ClaudeComposer({
     typedDraftRef.current = '';
     if (composer.getState().canSend) void composer.send();
   }, [composer, threadId]);
+  const queueDeploySend = useCallback(() => {
+    const text = (composer.getState().text ?? typedDraftRef.current ?? '').trim();
+    if (!text || !composer.getState().canSend) return;
+    composeTrace('react.queue-deploy-send', { threadId, len: text.length }, 'info', { snap: true });
+    appendDeployChatSendQueue(threadId, text);
+    setDeployQueueCount(getDeployChatSendQueue(threadId).length);
+    onQueuedChange?.(true);
+    clearChatComposeDraft(threadId);
+    typedDraftRef.current = '';
+    composer.setText('');
+    propsRef.current?.onComposeDirty?.(false);
+    const el = fieldRef.current?.getElement();
+    if (el instanceof HTMLElement) {
+      renderMentionEditor(el, '');
+      syncMentionEditorEmpty(el, '');
+    }
+  }, [composer, fieldRef, onQueuedChange, propsRef, threadId]);
   const steerAndSend = useCallback(() => {
     pendingSteerRef.current = true;
     void cancelChatTurn(threadId);
@@ -3026,9 +3146,13 @@ function ClaudeComposer({
     sendNow();
   }, [pendingSteerRef, sendNow, threadId, threadRuntime]);
   const fireSend = useCallback(() => {
+    if (deployQueueMode) {
+      queueDeploySend();
+      return;
+    }
     if (steerOnSend) steerAndSend();
     else sendNow();
-  }, [sendNow, steerAndSend, steerOnSend]);
+  }, [deployQueueMode, queueDeploySend, sendNow, steerAndSend, steerOnSend]);
   const helpers = useSlashHelpers(propsRef, commands, fieldRef, sendBlocked, fireSend);
   const mentions = useMentions(pendingMentionsRef, fieldRef);
   const lastUserText = useAuiState((s) => lastUserMessageText(s.thread.messages));
@@ -3168,9 +3292,9 @@ function ClaudeComposer({
             onInput={(value, caret) => {
               typedDraftRef.current = value;
               if (!value.trim()) {
-                clearDeployChatDraft(threadId);
+                clearDeployChatTypingDraft(threadId);
                 clearChatComposeDraft(threadId);
-                onQueuedChange?.(false);
+                onQueuedChange?.(hasDeployChatPendingSends(threadId));
               } else {
                 saveChatComposeDraft(threadId, value);
                 if (deployChatLocked) saveDeployChatDraft(threadId, value);
@@ -3192,10 +3316,12 @@ function ClaudeComposer({
               <AttachIcon />
             </ChatComposerAddAttachment>
             <span className="aui-composer-hint">
-              {queuedSend
-                ? 'Queued — this will send when the new version is live'
+              {deployQueueCount > 0
+                ? deployQueueCount === 1
+                  ? '1 message queued — sends when the new version is live'
+                  : `${deployQueueCount} messages queued — send in order when live`
                 : deployChatLocked
-                  ? 'Keep typing — send unlocks when the new version is live'
+                  ? 'Send queues your message until the new version is live'
                   : steerOnSend
                     ? 'Send stops the current turn and continues with your update · Stop cancels without sending'
                     : showRunning
@@ -3215,13 +3341,30 @@ function ClaudeComposer({
                   type="button"
                   className="aui-composer-send"
                   aria-label={
-                    queuedSend
-                      ? 'Send queued until the new version is live'
-                      : deployChatLocked
-                        ? 'Send paused until the new version is live'
-                        : 'Send paused until the agent finishes'
+                    deployLiveReloading
+                      ? 'Send paused while the new version loads'
+                      : 'Send paused until the agent finishes'
                   }
                   disabled
+                >
+                  <SendIcon />
+                </button>
+              ) : deployQueueMode ? (
+                <button
+                  ref={sendBtnRef}
+                  type="button"
+                  className="aui-composer-send"
+                  aria-label="Queue message until the new version is live"
+                  onPointerDown={(e) => e.preventDefault()}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={(e) => {
+                    if (sentByTouchRef.current) {
+                      sentByTouchRef.current = false;
+                      e.preventDefault();
+                      return;
+                    }
+                    fireSend();
+                  }}
                 >
                   <SendIcon />
                 </button>
@@ -3884,7 +4027,7 @@ function AgentChatThread({
 }) {
   const deployChatLock = useDeployChatLock();
   const [queuedSend, setQueuedSend] = useState(
-    () => Boolean(pendingAutoSend) || Boolean(readDeployChatDraftPayload(threadId)?.autoSend),
+    () => Boolean(pendingAutoSend) || hasDeployChatPendingSends(threadId),
   );
   const [streamedProgress, setStreamedProgressState] = useState<AgentProgress | null>(null);
   const setStreamedProgress = useCallback((progress: AgentProgress | null) => {

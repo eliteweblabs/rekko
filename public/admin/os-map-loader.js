@@ -15305,9 +15305,10 @@ function enqueueAgentOpen(prompt, opts = {}) {
   writeQueuedAgentOpens(list);
 }
 
-/** Keep a per-thread auto-send so multiple Send-to-Agent taps during one deploy all flush. */
+/** Keep a per-thread send queue so multiple Send-to-Agent taps during one deploy all flush. */
 function persistThreadAutoSend(threadId, text) {
   if (!threadId || !String(text || '').trim()) return;
+  const message = String(text).trim();
   try {
     const raw = sessionStorage.getItem(DEPLOY_CHAT_DRAFT_KEY);
     let map = {};
@@ -15318,13 +15319,25 @@ function persistThreadAutoSend(threadId, text) {
           [parsed.threadId]: {
             text: parsed.text,
             ...(parsed.autoSend ? { autoSend: true } : {}),
+            ...(Array.isArray(parsed.sendQueue) ? { sendQueue: parsed.sendQueue } : {}),
           },
         };
       } else if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
         map = parsed;
       }
     }
-    map[threadId] = { text, autoSend: true };
+    const prev = map[threadId] && typeof map[threadId] === 'object' ? map[threadId] : {};
+    const queue = Array.isArray(prev.sendQueue)
+      ? prev.sendQueue.map((s) => String(s).trim()).filter(Boolean)
+      : prev.autoSend && String(prev.text || '').trim()
+        ? [String(prev.text).trim()]
+        : [];
+    queue.push(message);
+    map[threadId] = {
+      text: typeof prev.text === 'string' ? prev.text : '',
+      autoSend: true,
+      sendQueue: queue,
+    };
     sessionStorage.setItem(DEPLOY_CHAT_DRAFT_KEY, JSON.stringify(map));
   } catch {
     /* private mode */
