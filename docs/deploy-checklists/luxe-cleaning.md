@@ -174,12 +174,17 @@ Stripe mail may still arrive on other Resend addresses while verify mail does no
 Repair script (after `.env` with `CLOUDFLARE_API_TOKEN` + `RESEND_API_KEY`):
 
 ```bash
-npx tsx scripts/fix-lux-stripe-owner-mail.ts
+npm run fix:lux-stripe-owner-mail          # apex CF routing + owner forward
+npm run wire:lux-inbound-resend            # after Resend has a free domain slot
 ```
 
-At Resend **domain limit**, owner mail forwards to `OWNER_MAIL_FORWARD` (default
-Felicia Gmail) until `inbound.lux.cleaning` can be added. Approve Cloudflare's
-destination verification in that inbox, then re-run the script so the routing rule updates.
+Resend is at the **10-domain plan cap** today. Upgrade (or remove an unused domain
+such as `rothcollc.com`, partially verified) then run **`wire:lux-inbound-resend`**
+to add **`inbound.lux.cleaning`**, sync MX/DKIM, and route `felicia@` →
+`inbox@inbound.lux.cleaning` (REΛVE Inbox + Stripe verify).
+
+Until then, owner mail may forward via `OWNER_MAIL_FORWARD` (Gmail). Approve
+Cloudflare destination verification in that inbox when prompted.
 
 Do **not** put Resend Inbound MX on apex `@` for this install.
 
