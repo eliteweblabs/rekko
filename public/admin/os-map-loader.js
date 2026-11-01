@@ -231,7 +231,7 @@ import {
   startNewClient,
   confirmDiscardChanges,
 } from './clients-panel.js?v=20261101a';
-import { mountClientSetupWizard, reopenClientSetupWizard } from './client-setup-panel.js?v=20260831a';
+import { mountClientSetupWizard, reopenClientSetupWizard } from './client-setup-panel.js?v=20261101a';
 import {
   ensureShakePermission,
   flushShakeUndoCommit,

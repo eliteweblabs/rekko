@@ -335,7 +335,12 @@ function renderWizard() {
           ${!step.required ? '<button type="button" class="brand-btn brand-btn-glass" data-cs-skip>Skip</button>' : ''}
         </div>
         <div class="cs-wizard-foot-right">
-          <button type="button" class="brand-btn" data-cs-next>${activeStepIdx >= pending.length - 1 ? 'Finish' : 'Done'}</button>
+          <button type="button" class="brand-btn brand-btn-glass" data-cs-mark-done>Mark done</button>
+          ${
+            activeStepIdx >= pending.length - 1
+              ? '<button type="button" class="brand-btn" data-cs-finish>Finish</button>'
+              : '<button type="button" class="brand-btn" data-cs-next>Next</button>'
+          }
         </div>
       </div>
     </div>
@@ -360,15 +365,18 @@ function renderWizard() {
     activeStepIdx = 0;
     renderWizard();
   });
-  wizardRoot.querySelector('[data-cs-next]')?.addEventListener('click', async () => {
-    if (activeStepIdx >= pending.length - 1) {
-      await postSetup('finish');
-      wizardRoot.hidden = true;
-      return;
-    }
+  wizardRoot.querySelector('[data-cs-next]')?.addEventListener('click', () => {
+    activeStepIdx = Math.min(activeStepIdx + 1, pending.length - 1);
+    renderWizard();
+  });
+  wizardRoot.querySelector('[data-cs-mark-done]')?.addEventListener('click', async () => {
     await postSetup('complete', step.id);
     activeStepIdx = 0;
     renderWizard();
+  });
+  wizardRoot.querySelector('[data-cs-finish]')?.addEventListener('click', async () => {
+    await postSetup('finish');
+    wizardRoot.hidden = true;
   });
 }
 
