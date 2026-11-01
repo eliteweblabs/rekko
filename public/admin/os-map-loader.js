@@ -3463,7 +3463,7 @@ async function purgeExpiredOtpsQuietly() {
     await closeOtpPushNotifications(ids);
     for (const id of ids) {
       try {
-        const res = await fetch(`/api/email/inbox/${encodeURIComponent(id)}`, {
+        const res = await adminFetch(`/api/email/inbox/${encodeURIComponent(id)}`, {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
           body: '{}',
@@ -16788,8 +16788,26 @@ async function markEmailJunk(ev) {
   }
 }
 
+function emailDeleteCommitErrorMessage(err) {
+  const msg = err instanceof Error ? err.message : String(err || '');
+  if (msg === 'Session expired') return null;
+  if (msg === 'Unauthorized') {
+    return 'Session expired — finish signing in, then delete again.';
+  }
+  return msg || 'Please try again.';
+}
+
+async function deleteInboxEmailRemote(id) {
+  const res = await adminFetch(`/api/email/inbox/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: '{}',
+  });
+  return readApiJson(res);
+}
+
 async function requestBulkDeleteEmails(ids) {
-  const res = await fetch('/api/email/inbox/bulk-delete', {
+  const res = await adminFetch('/api/email/inbox/bulk-delete', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ ids }),
@@ -16865,7 +16883,9 @@ async function bulkDeleteEmails(ids) {
       }
     },
     onCommitError: (e) => {
-      osAlert({ title: 'Delete failed', bodyHtml: escHtml(e.message) });
+      const msg = emailDeleteCommitErrorMessage(e);
+      if (!msg) return;
+      osAlert({ title: 'Delete failed', bodyHtml: escHtml(msg) });
     },
   });
 }
@@ -17192,15 +17212,12 @@ async function deleteEmail(ev) {
     hide: () => removeEmailsLocally([snapshot.ev], { pickAdjacent: true }),
     restore: () => restoreEmailsLocally([snapshot], { restoreActiveId: wasActive }),
     commit: async () => {
-      const res = await fetch(`/api/email/inbox/${encodeURIComponent(ev.id)}`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: '{}',
-      });
-      await readApiJson(res);
+      await deleteInboxEmailRemote(ev.id);
     },
     onCommitError: (e) => {
-      osAlert({ title: 'Delete failed', bodyHtml: escHtml(e.message) });
+      const msg = emailDeleteCommitErrorMessage(e);
+      if (!msg) return;
+      osAlert({ title: 'Delete failed', bodyHtml: escHtml(msg) });
     },
   });
 }

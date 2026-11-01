@@ -668,6 +668,9 @@ export function installAdminApiFetchGuard() {
       const retryInit = { ...(init || {}), __reaveRetried401: true };
       return native(input, retryInit);
     }
+    if (res.status === 401) {
+      throw new Error('Session expired');
+    }
     return res;
   };
 
@@ -877,6 +880,9 @@ export async function adminFetch(url, opts = {}) {
     const authOutcome = await handleAdminUnauthorizedResponse();
     if (authOutcome === ADMIN_AUTH_SILENT_RETRY) {
       return adminFetch(url, { ...opts, _retried401: true });
+    }
+    if (res.status === 401) {
+      throw new Error('Session expired');
     }
   }
   return res;
