@@ -362,6 +362,7 @@ export function createIosIconBtn(opts = {}) {
     confirmDelete = false,
     confirmTimeout,
     size = 'md',
+    glyphSize,
   } = opts;
   const sizeKey = resolveIosIconBtnSize(size);
   const btn = document.createElement('button');
@@ -370,7 +371,10 @@ export function createIosIconBtn(opts = {}) {
   applyIosIconBtnSizeClass(btn, sizeKey);
   btn.setAttribute('aria-label', label);
   btn.title = label;
-  btn.innerHTML = iosIconBtnMarkup(iconKey, IOS_ICON_BTN_SIZES[sizeKey].glyph);
+  btn.innerHTML = iosIconBtnMarkup(
+    iconKey,
+    glyphSize ?? IOS_ICON_BTN_SIZES[sizeKey].glyph,
+  );
   if (confirmDelete) {
     bindConfirmDeleteButton(btn, () => onClick?.(btn), { timeout: confirmTimeout });
   } else {
@@ -519,6 +523,7 @@ export function createCopyIconBtn(opts = {}) {
     label = 'Copy',
     className = 'ios-icon-btn',
     size = 'md',
+    glyphSize,
     onSuccess,
     onError,
   } = opts;
@@ -527,6 +532,7 @@ export function createCopyIconBtn(opts = {}) {
     label,
     className,
     size,
+    glyphSize,
     onClick: async (btn) => {
       let value = '';
       try {
@@ -1408,7 +1414,7 @@ export function createInputCopyAdornment(input, opts = {}) {
   const btn = createCopyIconBtn({
     label: 'Copy',
     className: 'ios-icon-btn input-copy-btn',
-    size: 'sm',
+    glyphSize: 18,
     getText: resolveText,
   });
   const sync = () => syncInputCopyAdornment(input, btn, resolveText);

@@ -4078,19 +4078,23 @@ button.de-placeholder-action:active {
 .cl-email-field:has(.de-input.de-field-invalid) {
   border-color: #ef4444;
 }
+/* Inset field actions — same hit box and 18px glyph as mail / external-link (navIcon 18). */
 .cl-website-open-btn,
-.cl-email-open-btn {
+.cl-email-open-btn,
+.control-field > .input-copy-btn.ios-icon-btn {
   width: calc(var(--control-h) - var(--control-inset) * 2);
   height: calc(var(--control-h) - var(--control-inset) * 2);
   min-width: calc(var(--control-h) - var(--control-inset) * 2);
+  min-height: calc(var(--control-h) - var(--control-inset) * 2);
   padding: 0;
 }
-.control-field > .input-copy-btn.ios-icon-btn {
-  width: var(--icon-btn-box);
-  height: var(--icon-btn-box);
-  min-width: var(--icon-btn-box);
-  min-height: var(--icon-btn-box);
-  padding: 0;
+.cl-website-open-btn svg,
+.cl-email-open-btn svg,
+.control-field > .input-copy-btn.ios-icon-btn svg:not(.delete-confirm-ring):not(.timing-ring) {
+  width: 18px;
+  height: 18px;
+  max-width: 18px;
+  max-height: 18px;
 }
 .cl-website-open-btn[disabled],
 .cl-email-open-btn[disabled],
