@@ -9,7 +9,6 @@ const KNOWN_CARD_DEMO_META: Record<string, Pick<CardDemoSite, 'emoji' | 'categor
   'jc pena': { emoji: '🪒', category: 'Master Barber' },
   "the barber's edge": { emoji: '✂️', category: 'Barbershop · Beverly, MA' },
   'lux cleaning': { emoji: '✨', category: 'Cleaning Service · Beverly, MA' },
-  'kaykay cleaning company': { emoji: '✨', category: 'Cleaning · Beverly, MA' },
   'levines law': { emoji: '⚖️', category: 'Law · Beverly, MA' },
   levineslaw: { emoji: '⚖️', category: 'Law · Beverly, MA' },
   'life saving fire protection': { emoji: '🚒', category: 'Fire Protection' },
@@ -33,7 +32,7 @@ const KNOWN_CARD_DEMO_META: Record<string, Pick<CardDemoSite, 'emoji' | 'categor
 
 const EMOJI_RULES: { test: RegExp; emoji: string; category: string }[] = [
   { test: /barber|barbershop|pena|whalley/i, emoji: '💈', category: 'Barber' },
-  { test: /clean|lux|kaykay/i, emoji: '✨', category: 'Cleaning' },
+  { test: /clean|lux/i, emoji: '✨', category: 'Cleaning' },
   { test: /law|levine|esq/i, emoji: '⚖️', category: 'Law' },
   { test: /fire|protection/i, emoji: '🚒', category: 'Fire protection' },
   { test: /paws|vet|dr paw/i, emoji: '🐾', category: 'Pet care' },

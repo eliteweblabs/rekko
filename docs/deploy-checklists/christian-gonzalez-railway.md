@@ -22,11 +22,9 @@
 
 Optional later: `{slug}-api`, `{slug}-app` (see Steven Diaz).
 
-## Legacy reΛVe canvas (retire after cutover)
+## Legacy reΛVe canvas — removed (2026-11-01)
 
-These were the old slim-hub stack; stop deploying once the solo stack is verified:
-
-`reave`, `reave-postgres`, `contact-api`, `contact-postgres`, `calcom-*`, `crater*`.
+Deleted from Railway production: `reave`, `reave-postgres`, `contact-api`, `contact-postgres`, `calcom-*`, `crater*`, and their orphaned Postgres volumes. Project now matches Steven Diaz: **`christian-gonzalez-site`**, **`christian-gonzalez-cal`**, **`christian-gonzalez-db`** only.
 
 ## Install / wire
 

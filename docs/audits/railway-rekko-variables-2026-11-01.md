@@ -29,7 +29,7 @@ Installs scanned: 13
 \*Pexels where website/content modules need it; several use `ANTHROPIC_API_KEY` only without OpenRouter.
 
 ## App services
-- **Christian Gonzalez** — `reave` (35 vars, INSTALL_CONFIG=christian-gonzalez)
+- ~~Christian Gonzalez~~ — **moved to solo barber stack** (no `reave` service; see `docs/deploy-checklists/christian-gonzalez-railway.md`)
 - **Dr Paws Calls** — `reave` (95 vars, INSTALL_CONFIG=drpawscalls)
 - **Levines Law** — `levineslaw` (36 vars, INSTALL_CONFIG=(unset))
 - **Levines Law** — `reave` (74 vars, INSTALL_CONFIG=levineslaw)
