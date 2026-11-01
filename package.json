@@ -25,6 +25,7 @@
     "fix:barber-cal": "node scripts/fix-barber-cal.js",
     "copy:mapbox:north-shore-mortgage": "node --experimental-strip-types scripts/copy-mapbox-north-shore-mortgage.ts",
     "wire:lux-felicia-routing": "node --experimental-strip-types scripts/wire-lux-felicia-email-routing.ts",
+    "fix:lux-stripe-owner-mail": "npx tsx scripts/fix-lux-stripe-owner-mail.ts",
     "seed:demo": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/seed-demo.ts",
     "deploy:checklist": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/generate-deploy-checklist.ts",
     "seed:bookings": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/seed-bookings.ts",

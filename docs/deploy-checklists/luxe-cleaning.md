@@ -158,28 +158,41 @@ install config slug or `VAPI_API_KEY` is missing on the **build** service.
 2. Confirm **508-955-8850** appears under Phone Numbers.
 3. After deploy, verify the number’s assistant matches `PUBLIC_VAPI_ASSISTANT_ID`.
 
-## DNS (Cloudflare) — no Google Workspace on apex
+## DNS (Cloudflare) — split owner mail vs app mail
 
-This install receives app mail on **`inbound.lux.cleaning`** (Resend MX), not Google
-Workspace. Do **not** add Google MX / SPF / site-verification on apex `lux.cleaning`.
+**Stripe / bank / Clerk account verification** on `felicia@lux.cleaning` must not use
+apex MX → Resend Inbound (Amazon SES). Stripe documents that **business addresses
+behind third-party mail** often never receive `@stripe.com` verification — marketing
+Stripe mail may still arrive on other Resend addresses while verify mail does not.
+
+| Path | MX / routing | Purpose |
+|------|----------------|---------|
+| **`felicia@lux.cleaning`** | Cloudflare Email Routing on **apex** (`route*.mx.cloudflare.net`) | Owner / Stripe / Clerk login verify |
+| **`inbox@inbound.lux.cleaning`** | Resend receiving on **`inbound.lux.cleaning` only** | REΛVE admin Inbox (leads, triage) |
+| **`noreply@inbound.lux.cleaning`** | Resend send | Outbound app mail |
+
+Repair script (after `.env` with `CLOUDFLARE_API_TOKEN` + `RESEND_API_KEY`):
+
+```bash
+npx tsx scripts/fix-lux-stripe-owner-mail.ts
+```
+
+At Resend **domain limit**, owner mail forwards to `OWNER_MAIL_FORWARD` (default
+Felicia Gmail) until `inbound.lux.cleaning` can be added. Approve Cloudflare's
+destination verification in that inbox, then re-run the script so the routing rule updates.
+
+Do **not** put Resend Inbound MX on apex `@` for this install.
+
+Optional later: Google Workspace on apex for Felicia to read mail in Gmail/Apple Mail;
+keep **`inbound.lux.cleaning`** on Resend for the app either way.
 
 | Host | Purpose | Keep? |
 |------|---------|-------|
 | `lux.cleaning` / `www` | Railway CNAME + `_railway-verify` TXT | ✓ |
-| `inbound.lux.cleaning` | Resend receiving MX + DKIM/SPF (via `--wire-inbound`) | ✓ |
+| `inbound.lux.cleaning` | Resend receiving MX + DKIM/SPF | ✓ |
+| `@` apex | CF Email Routing MX — **not** `inbound-smtp.us-east-1.amazonaws.com` | ✓ |
 | `clerk`, `clkmail`, `clk*._domainkey`, `accounts` | Clerk sign-in | ✓ |
 | `cal`, `book` | Cal.com | ✓ |
-| `@` Google MX / `include:_spf.google.com` | Workspace mail | ✗ remove |
-
-Owner identity is `felicia@lux.cleaning` (Clerk + `OWNER_EMAIL`). App inbox is
-`inbox@inbound.lux.cleaning`. Outbound sender is `noreply@inbound.lux.cleaning`.
-
-To deliver **to `felicia@lux.cleaning`** into the REΛVE inbox (no Apple Mail):
-Cloudflare **Email Routing** on apex `lux.cleaning` forwards to
-`inbox@inbound.lux.cleaning` (Resend receiving). Resend’s domain limit blocks a
-second apex domain — use `npm run wire:lux-felicia-routing` after verifying the
-Cloudflare destination (see script output). Apex MX must be Cloudflare routing
-(`route*.mx.cloudflare.net`), not Google Workspace.
 
 ## Verify
 
