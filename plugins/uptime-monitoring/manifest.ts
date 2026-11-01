@@ -1,6 +1,7 @@
 import { isUptimeRobotConfigured } from '../../src/lib/uptimerobotClient';
 import { uptimeModule } from './agentTools';
 import type { ReavePlugin } from '../_shared/types';
+import { uptimeMonitoringHelperCommands } from './helperCommands';
 
 export const uptimeMonitoringPlugin: ReavePlugin = {
   id: 'uptime-monitoring',
@@ -8,4 +9,5 @@ export const uptimeMonitoringPlugin: ReavePlugin = {
   feature: 'uptime_monitoring',
   configured: isUptimeRobotConfigured,
   agentTools: uptimeModule,
+  helperCommands: uptimeMonitoringHelperCommands,
 };

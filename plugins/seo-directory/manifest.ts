@@ -1,5 +1,6 @@
 import { seoDirectoryAgentTools } from './agentTools';
 import type { ReavePlugin } from '../_shared/types';
+import { seoDirectoryHelperCommands } from './helperCommands';
 
 export const seoDirectoryPlugin: ReavePlugin = {
   id: 'seo-directory',
@@ -7,4 +8,5 @@ export const seoDirectoryPlugin: ReavePlugin = {
   // Do not gate the whole plugin on BRIGHTLOCAL_API_KEY — knowledge stays
   // available while the kit is in development; tools report unconfigured status.
   agentTools: seoDirectoryAgentTools,
+  helperCommands: seoDirectoryHelperCommands,
 };

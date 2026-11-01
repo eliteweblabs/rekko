@@ -6,6 +6,7 @@
  */
 import type { ReavePlugin } from '../../plugins/_shared/types';
 import type { AgentToolModule, ToolContext } from './agentTools/types';
+import { toHelperCommand, type AgentHelperCommand } from './agentHelperCommands';
 import { FEATURE_LABELS, type FeatureId } from './featureCatalog';
 import { hasFeature, hasIdeogramImageGen, hasStockPhotoSearch, hasWebsiteEditor } from './features';
 import { isCanonicalReaveInstall } from './installConfig';
@@ -130,6 +131,25 @@ export function activeAgentToolModules(): AgentToolModule[] {
   return REAVE_PLUGINS.filter((p) => pluginFeatureEnabled(p) && p.agentTools)
     .map((p) => p.agentTools)
     .filter((m): m is AgentToolModule => !!m);
+}
+
+/** Slash commands from enabled plugins — same feature gate as agentTools (not `configured()`). */
+export function activePluginHelperCommands(): AgentHelperCommand[] {
+  const out: AgentHelperCommand[] = [];
+  for (const plugin of REAVE_PLUGINS) {
+    if (!pluginFeatureEnabled(plugin)) continue;
+    const entries = plugin.helperCommands;
+    if (!entries?.length) continue;
+    for (const entry of entries) {
+      out.push(
+        toHelperCommand({
+          ...entry,
+          feature: entry.feature ?? plugin.feature ?? 'core',
+        }),
+      );
+    }
+  }
+  return out;
 }
 
 /**

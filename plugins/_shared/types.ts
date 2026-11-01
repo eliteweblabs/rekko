@@ -10,6 +10,7 @@
  */
 import type { FeatureId } from '../../src/lib/features';
 import type { AgentToolModule } from '../../src/lib/agentTools/types';
+import type { HelperManifestEntry } from '../../src/lib/agentHelperCommands';
 
 export interface ReavePlugin {
   /** Directory name under plugins/, e.g. billing, dev-infra */
@@ -19,4 +20,6 @@ export interface ReavePlugin {
   /** When set, module is "fully configured" for deploy UI — not required to register agent tools. */
   configured?: () => boolean;
   agentTools?: AgentToolModule;
+  /** Slash commands in agent chat — registered when the module is enabled (same gate as agentTools). */
+  helperCommands?: readonly HelperManifestEntry[];
 }

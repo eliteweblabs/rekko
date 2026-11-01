@@ -4,12 +4,15 @@
 import type { APIContext } from 'astro';
 import { listEnabledHelperCommands } from '../../../lib/agentHelperCommands.server';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import { ensureFeatureOverridesLoaded } from '../../../lib/features';
 
 export const prerender = false;
 
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
+
+  await ensureFeatureOverridesLoaded();
 
   const commands = listEnabledHelperCommands().map((cmd) => ({
     slash: cmd.slash,

@@ -1,6 +1,7 @@
 /**
  * Slash-style helper commands for admin agent chat compose.
- * Server filters by enabled plugins via listEnabledHelperCommands() in agentHelperCommands.server.ts.
+ * Core OS commands live here; optional modules register via plugins/{id}/helperCommands.ts
+ * (same feature gate as agentTools). Server aggregates in agentHelperCommands.server.ts.
  */
 
 export type AgentHelperCommand = {
@@ -10,11 +11,11 @@ export type AgentHelperCommand = {
   template: string;
   steps: string[];
   example: string;
-  /** Omit or "core" = always available when logged in. */
+  /** Omit or "core" = always available when logged in (may still be runtime-gated on server). */
   feature?: string | 'core';
 };
 
-type HelperManifestEntry = {
+export type HelperManifestEntry = {
   slash: string;
   summary: string;
   template: string;
@@ -27,7 +28,7 @@ function titleFromSlash(slash: string): string {
   return raw.charAt(0).toUpperCase() + raw.slice(1);
 }
 
-function toCommand(entry: HelperManifestEntry): AgentHelperCommand {
+export function toHelperCommand(entry: HelperManifestEntry): AgentHelperCommand {
   return {
     slash: entry.slash,
     label: titleFromSlash(entry.slash),
@@ -39,8 +40,8 @@ function toCommand(entry: HelperManifestEntry): AgentHelperCommand {
   };
 }
 
-/** Full catalog — admin can disable via Plugins; chat picker filters this list. */
-const HELPER_MANIFEST: HelperManifestEntry[] = [
+/** Always-on OS commands (+ feature-flagged add-ons without a plugin home). */
+const CORE_HELPER_MANIFEST: HelperManifestEntry[] = [
   // Knowledge
   {
     slash: '/knowledge',
@@ -101,27 +102,7 @@ const HELPER_MANIFEST: HelperManifestEntry[] = [
     example: 'Create a contact for Jane Doe with email jane@acme.com.',
   },
 
-  // Email inbox
-  {
-    slash: '/inbox',
-    summary: 'List inbox emails',
-    template: 'List recent inbox emails.',
-    example: 'List recent inbox emails.',
-  },
-  {
-    slash: '/email',
-    summary: 'Read an inbox email',
-    template: 'Read inbox email [id or subject].',
-    example: 'Read the latest email from Acme Corp.',
-  },
-  {
-    slash: '/rule',
-    summary: 'Create an email filter rule',
-    template: 'Create an email filter rule for sender [address] (optional: expires in [N] days).',
-    example: 'Create an email filter rule for sender noreply@wordpress.com that expires in 7 days.',
-  },
-
-  // Personal todos
+  // Personal todos (runtime: todo DB)
   {
     slash: '/todo',
     summary: 'List personal todos',
@@ -149,7 +130,7 @@ const HELPER_MANIFEST: HelperManifestEntry[] = [
     example: 'Forget that invoice terms are net-30.',
   },
 
-  // Outbound comms & search
+  // Outbound comms & search (runtime gates on server)
   {
     slash: '/send',
     summary: 'Send an email',
@@ -163,230 +144,7 @@ const HELPER_MANIFEST: HelperManifestEntry[] = [
     example: 'Search the web for Northwind Studio Boston.',
   },
 
-  // Client portal (plugin)
-  {
-    slash: '/portal',
-    summary: 'Get a client portal link',
-    template: "What's the portal link for [client]?",
-    example: "What's the portal link for Acme Corp?",
-    feature: 'client_portal',
-  },
-  {
-    slash: '/portal-send',
-    summary: 'Send portal link to client',
-    template: 'Send the client portal link to [client].',
-    example: 'Send the client portal link to Acme Corp.',
-    feature: 'client_portal',
-  },
-  {
-    slash: '/portal-set',
-    summary: 'Update client portal content',
-    template: 'Update [client] portal headline to [headline] and body: [content].',
-    example: 'Update Acme portal headline to Your project and body: We are on track for launch.',
-    feature: 'client_portal',
-  },
-
-  // Billing (plugin)
-  {
-    slash: '/invoice',
-    summary: 'Create a draft Crater invoice',
-    template: 'Create a draft invoice for [client name] for $[amount].',
-    example: 'Create a draft invoice for Acme Corp for $1,500 for project acme-website-redesign.',
-    feature: 'billing',
-  },
-  {
-    slash: '/invoices',
-    summary: 'List recent invoices',
-    template: 'List my recent Crater invoices.',
-    example: 'List my recent Crater invoices.',
-    feature: 'billing',
-  },
-  {
-    slash: '/invoice-pay',
-    summary: 'Record an invoice payment',
-    template: 'Record payment of $[amount] for invoice [number].',
-    example: 'Record payment of $1,500 for invoice INV-00042.',
-    feature: 'billing',
-  },
-  {
-    slash: '/payment-modes',
-    summary: 'Seed Crater payment modes (Venmo, Zelle, etc.)',
-    template: 'Add payment modes',
-    example: 'Add payment modes',
-    feature: 'billing',
-  },
-
-  // Scheduling / meetings (plugin)
-  {
-    slash: '/meeting',
-    summary: "List today's and upcoming meetings",
-    template: "What's on my calendar today and upcoming?",
-    example: "What's on my calendar today and upcoming?",
-    feature: 'scheduling',
-  },
-  {
-    slash: '/meetings',
-    summary: 'List upcoming appointments',
-    template: 'List my upcoming meetings.',
-    example: 'List my upcoming meetings.',
-    feature: 'scheduling',
-  },
-  {
-    slash: '/schedule',
-    summary: 'Get booking link to share',
-    template: 'Get my Cal.com booking link to share with a client.',
-    example: 'Get my Cal.com booking link to share with a client.',
-    feature: 'scheduling',
-  },
-
-  // Site audits (plugin)
-  {
-    slash: '/audit',
-    summary: 'Run Lighthouse audit on a URL',
-    template: 'Run a Lighthouse audit on [url].',
-    example: 'Run a Lighthouse audit on https://acme.com.',
-    feature: 'site_audits',
-  },
-  {
-    slash: '/fetch',
-    summary: 'Fetch and review a webpage',
-    template: 'Fetch and summarize [url].',
-    example: 'Fetch and summarize https://acme.com.',
-    feature: 'site_audits',
-  },
-  {
-    slash: '/seoinventory',
-    summary: 'SEO inventory (OG, robots, sitemap, manifest)',
-    template:
-      'Run seo_inventory on [url] — check og:image, robots.txt, sitemap, manifest, favicon, canonical, and JSON-LD.',
-    example:
-      'Run seo_inventory on https://acme.com — check og:image, robots.txt, sitemap, manifest, favicon, canonical, and JSON-LD.',
-    feature: 'site_audits',
-  },
-  {
-    slash: '/ssl',
-    summary: 'Check SSL certificate',
-    template: 'Check SSL certificate for [domain].',
-    example: 'Check SSL certificate for acme.com.',
-    feature: 'site_audits',
-  },
-  {
-    slash: '/links',
-    summary: 'Check broken links on a site',
-    template: 'Check for broken links on [url].',
-    example: 'Check for broken links on https://acme.com.',
-    feature: 'site_audits',
-  },
-  {
-    slash: '/dns',
-    summary: 'DNS and email auth check',
-    template: 'Run DNS check for [domain].',
-    example: 'Run DNS check for acme.com.',
-    feature: 'site_audits',
-  },
-  {
-    slash: '/techstack',
-    summary: 'Detect tech stack (Wappalyzer-style)',
-    template: 'What is [url] built with? Detect the tech stack.',
-    example: 'What is https://acme.com built with? Detect the tech stack.',
-    feature: 'site_audits',
-  },
-
-  // Wayback Machine (plugin)
-  {
-    slash: '/wayback',
-    summary: 'View an archived website snapshot',
-    template: 'What did [url] look like in [month/year]?',
-    example: 'What did https://example.com look like in February 2018?',
-    feature: 'wayback_machine',
-  },
-
-  // SEO Directory API Kit (plugin)
-  {
-    slash: '/seo-directory',
-    summary: 'SEO Directory API Kit status',
-    template: 'What is the SEO Directory API Kit status?',
-    example: 'What is the SEO Directory API Kit status?',
-    feature: 'seo_directory',
-  },
-
-  // Site monitoring (plugin)
-  {
-    slash: '/monitor',
-    summary: 'Website change monitoring status',
-    template: 'What is the change monitoring status for [url]?',
-    example: 'What is the change monitoring status for https://acme.com?',
-    feature: 'site_monitoring',
-  },
-
-  // Uptime (plugin)
-  {
-    slash: '/uptime',
-    summary: 'Uptime monitoring summary',
-    template: 'Show uptime monitoring summary.',
-    example: 'Show uptime monitoring summary.',
-    feature: 'uptime_monitoring',
-  },
-
-  // Dev & infrastructure (plugin)
-  {
-    slash: '/deploy',
-    summary: 'Check if production is live',
-    template: 'Is the latest code committed, pushed, and deployed to production?',
-    example: 'Is the latest code committed, pushed, and deployed to production?',
-    feature: 'dev_infra',
-  },
-  {
-    slash: '/git',
-    summary: 'Git repo status',
-    template: 'What is the current git status on the main branch?',
-    example: 'What is the current git status on the main branch?',
-    feature: 'dev_infra',
-  },
-  {
-    slash: '/commits',
-    summary: 'Recent commits',
-    template: 'Show recent commits on main.',
-    example: 'Show recent commits on main.',
-    feature: 'dev_infra',
-  },
-  {
-    slash: '/branches',
-    summary: 'Open git branches',
-    template: 'List open branches and in-progress work.',
-    example: 'List open branches and in-progress work.',
-    feature: 'dev_infra',
-  },
-  {
-    slash: '/dev',
-    summary: 'Run a dev/ops status check',
-    template: 'Run a service status check.',
-    example: 'Run a service status check.',
-    feature: 'dev_infra',
-  },
-  {
-    slash: '/railway',
-    summary: 'Railway domains & DNS',
-    template: 'List Railway domains for the production project.',
-    example: 'List Railway domains for the production project.',
-    feature: 'dev_infra',
-  },
-  {
-    slash: '/kinsta',
-    summary: 'List Kinsta WordPress sites',
-    template: 'List Kinsta WordPress sites.',
-    example: 'List Kinsta WordPress sites.',
-    feature: 'dev_infra',
-  },
-  {
-    slash: '/github-pr',
-    summary: 'Open a GitHub pull request',
-    template: 'Open a PR from branch [branch] titled [title].',
-    example: 'Open a PR from branch fix/typo titled Fix homepage typo.',
-    feature: 'dev_infra',
-  },
-
-  // Documents (plugin)
+  // Dynamic documents (no plugin package — feature add-on)
   {
     slash: '/document',
     summary: 'Send a filled document',
@@ -395,40 +153,13 @@ const HELPER_MANIFEST: HelperManifestEntry[] = [
     feature: 'documents',
   },
 
-  // Voice (plugin)
+  // Voice outbound (Telnyx / Vapi stack — feature add-on)
   {
     slash: '/call',
     summary: 'Initiate an outbound call',
     template: 'Call [contact] at [phone].',
     example: 'Call Tony Vello at +15551234567.',
     feature: 'voice',
-  },
-
-  // Vapi admin (plugin)
-  {
-    slash: '/vapi-sync',
-    summary: 'Sync Vapi assistant branding',
-    template: 'Sync the Vapi assistant from Company details.',
-    example: 'Sync the Vapi assistant from Company details.',
-    feature: 'vapi',
-  },
-
-  // UptimeRobot admin (plugin)
-  {
-    slash: '/uptimerobot-sync',
-    summary: 'Sync UptimeRobot monitors',
-    template: 'Sync monitors from UptimeRobot API.',
-    example: 'Sync monitors from UptimeRobot API.',
-    feature: 'uptime_monitoring',
-  },
-
-  // CardDAV (plugin)
-  {
-    slash: '/carddav',
-    summary: 'iOS Contacts sync setup',
-    template: 'How do I sync contacts to iPhone with CardDAV?',
-    example: 'How do I sync contacts to iPhone with CardDAV?',
-    feature: 'carddav',
   },
 
   // Media drop folder (core)
@@ -440,7 +171,8 @@ const HELPER_MANIFEST: HelperManifestEntry[] = [
   },
 ];
 
-export const AGENT_HELPER_COMMANDS: AgentHelperCommand[] = HELPER_MANIFEST.map(toCommand);
+/** Core slash commands — use listEnabledHelperCommands() for the deployment-filtered list. */
+export const AGENT_HELPER_COMMANDS: AgentHelperCommand[] = CORE_HELPER_MANIFEST.map(toHelperCommand);
 
 export function filterHelperCommands(query: string, commands: AgentHelperCommand[]): AgentHelperCommand[] {
   const trimmed = query.trim();
