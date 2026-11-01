@@ -18,6 +18,7 @@ stage: 2
 ## External setup
 
 - Enable `ideogram` in install config `features[]` (or enable `website`, which bundles image tools)
+- Logo chat flow: `generate_logo_concepts` + `apply_generated_logo_to_company` (Potrace raster→SVG server-side; npm `potrace` + `sharp`)
 - Create an API key in the Ideogram platform dashboard
 - Add credits / billing on the Ideogram account (requests fail with 402 when balance is zero)
 

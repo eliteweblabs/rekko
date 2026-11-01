@@ -18,13 +18,18 @@ import {
 import { hasIdeogramImageGen } from '../../src/lib/features';
 import {
   MEDIA_LIBRARY_CATEGORY_IDEOGRAM,
+  isBrandSvgMediaType,
+  storeAddMedia,
+  storeGetMediaByRef,
   storeImportRemoteImageToMediaLibrary,
   storeListMedia,
 } from '../../src/lib/mediaLibrary';
 import { isSafeWorkSlug, storeReadWork } from '../../src/lib/workStore';
 import { storeAddProjectFile } from '../../src/lib/projectFiles';
 import type { AgentToolDef, AgentToolModule, ToolContext } from '../../src/lib/agentTools/types';
+import { applyCompanyBrandingFromMediaLibrary, type CompanyBrandingSlot } from '../../src/lib/companyBrandingFromMedia';
 import { resolveIdeogramImageInput } from './imageInput';
+import { traceRasterBufferToSvg } from './rasterTrace';
 
 const SOCIAL_FORMAT_RATIOS: Record<string, string> = {
   square: '1x1',
@@ -342,11 +347,165 @@ async function handle_list_generated_images(args: Record<string, unknown>, _ctx:
   });
 }
 
+function parseBrandingSlot(raw: unknown): CompanyBrandingSlot {
+  const slot = String(raw ?? 'logo')
+    .trim()
+    .toLowerCase();
+  if (slot === 'icon' || slot === 'og') return slot;
+  return 'logo';
+}
+
+async function handle_trace_image_to_svg(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
+  const resolved = await resolveIdeogramImageInput({
+    url: String(args.url ?? args.image_url ?? ''),
+    media_id: String(args.media_id ?? ''),
+    data_base64: String(args.data_base64 ?? ''),
+    filename: String(args.filename ?? ''),
+  });
+  if (!resolved.ok) return JSON.stringify({ error: resolved.error });
+
+  if (isBrandSvgMediaType(resolved.image.mediaType)) {
+    return JSON.stringify({
+      error: 'Source is already SVG — use set_company_branding_from_media or apply_generated_logo_to_company directly.',
+    });
+  }
+
+  const traced = await traceRasterBufferToSvg(resolved.image.buffer, {
+    threshold: args.threshold != null ? Number(args.threshold) : undefined,
+  });
+  if (!traced.ok) {
+    return JSON.stringify({
+      error: traced.error,
+      fallback_hint: traced.fallbackHint,
+    });
+  }
+
+  const saveToMedia = args.save_to_media !== false && args.save_to_media !== 'false';
+  if (!saveToMedia) {
+    return JSON.stringify({
+      ok: true,
+      svg_bytes: traced.sizeBytes,
+      svg: traced.svg,
+      note: 'Inline SVG returned because save_to_media was false.',
+    });
+  }
+
+  const altText = args.alt_text ? String(args.alt_text).trim() : 'Traced logo (Ideogram)';
+  const slug = args.slug ? String(args.slug).trim() : undefined;
+  const baseName = resolved.image.filename.replace(/\.[a-z0-9]+$/i, '') || 'logo-traced';
+  const added = await storeAddMedia({
+    filename: `${baseName}.svg`,
+    mediaType: 'image/svg+xml',
+    dataBase64: Buffer.from(traced.svg, 'utf8').toString('base64'),
+    altText,
+    uploadedBy: getAgentContext().userId ?? null,
+    slug,
+    category: MEDIA_LIBRARY_CATEGORY_IDEOGRAM,
+  });
+  if (!added.ok) return JSON.stringify({ error: added.error });
+
+  return JSON.stringify({
+    ok: true,
+    svg_bytes: traced.sizeBytes,
+    media: {
+      id: added.item.id,
+      slug: added.item.slug,
+      publicUrl: added.item.publicUrl,
+      filename: added.item.filename,
+    },
+    note: 'Use set_company_branding_from_media or apply_generated_logo_to_company with this media id for Admin → Company.',
+  });
+}
+
+async function handle_apply_generated_logo_to_company(
+  args: Record<string, unknown>,
+  _ctx: ToolContext,
+): Promise<string> {
+  const mediaRef = String(args.media_id ?? args.mediaId ?? '').trim();
+  if (!mediaRef) return JSON.stringify({ error: 'media_id is required' });
+
+  const slot = parseBrandingSlot(args.slot ?? args.branding_slot);
+  if (slot === 'og') {
+    return JSON.stringify({
+      error: 'OG share image must be raster — use set_company_branding_from_media with slot og and a PNG/JPEG.',
+    });
+  }
+
+  const traceFirst = args.trace !== false && args.trace !== 'false';
+  const rasterFallback = args.use_raster_fallback !== false && args.use_raster_fallback !== 'false';
+
+  const record = await storeGetMediaByRef(mediaRef);
+  if (!record) return JSON.stringify({ error: 'media_id not found in the media library' });
+
+  if (isBrandSvgMediaType(record.mediaType) || !traceFirst) {
+    const applied = await applyCompanyBrandingFromMediaLibrary(slot, mediaRef);
+    return JSON.stringify({
+      ...applied,
+      applied_as: isBrandSvgMediaType(record.mediaType) ? 'svg' : 'raster',
+      traced: false,
+    });
+  }
+
+  const buffer = Buffer.from(record.dataBase64, 'base64');
+  const traced = await traceRasterBufferToSvg(buffer, {
+    threshold: args.threshold != null ? Number(args.threshold) : undefined,
+  });
+
+  if (!traced.ok) {
+    if (!rasterFallback) {
+      return JSON.stringify({
+        error: traced.error,
+        fallback_hint: traced.fallbackHint,
+        traced: false,
+      });
+    }
+    const applied = await applyCompanyBrandingFromMediaLibrary(slot, mediaRef);
+    return JSON.stringify({
+      ...applied,
+      applied_as: 'raster',
+      traced: false,
+      trace_error: traced.error,
+    });
+  }
+
+  const tracedMedia = await storeAddMedia({
+    filename: record.filename.replace(/\.[a-z0-9]+$/i, '') + '-traced.svg',
+    mediaType: 'image/svg+xml',
+    dataBase64: Buffer.from(traced.svg, 'utf8').toString('base64'),
+    altText: record.altText ? `${record.altText} (traced)` : 'Traced company logo',
+    uploadedBy: getAgentContext().userId ?? null,
+    category: MEDIA_LIBRARY_CATEGORY_IDEOGRAM,
+  });
+  if (!tracedMedia.ok) {
+    if (!rasterFallback) return JSON.stringify({ error: tracedMedia.error, traced: true });
+    const applied = await applyCompanyBrandingFromMediaLibrary(slot, mediaRef);
+    return JSON.stringify({
+      ...applied,
+      applied_as: 'raster',
+      traced: false,
+      trace_error: tracedMedia.error,
+    });
+  }
+
+  const applied = await applyCompanyBrandingFromMediaLibrary(slot, tracedMedia.item.id);
+  return JSON.stringify({
+    ...applied,
+    applied_as: 'svg',
+    traced: true,
+    traced_media: {
+      id: tracedMedia.item.id,
+      slug: tracedMedia.item.slug,
+      publicUrl: tracedMedia.item.publicUrl,
+    },
+    source_media_id: record.id,
+  });
+}
+
 async function handle_generate_logo_concepts(args: Record<string, unknown>, ctx: ToolContext): Promise<string> {
   const brief = String(args.prompt ?? args.brand ?? '').trim();
   if (!brief) return JSON.stringify({ error: 'prompt or brand is required' });
 
-  const prompt = `Professional logo concept, vector-friendly, minimal brand mark on clean background: ${brief}`;
+  const prompt = `Professional logo concept, vector-friendly, minimal brand mark on solid white background, flat colors, no photo texture: ${brief}`;
   return handle_generate_image(
     {
       ...args,
@@ -603,7 +762,8 @@ export const ideogramAgentTools: AgentToolModule = {
         type: 'function',
         function: {
           name: 'generate_logo_concepts',
-          description: 'Generate logo concept images (design style, square, multiple variations).',
+          description:
+            'Generate logo concept images (design style, square, multiple variations). Use save_to_media then apply_generated_logo_to_company to update Admin → Company without manual upload.',
           parameters: {
             type: 'object',
             properties: {
@@ -613,6 +773,57 @@ export const ideogramAgentTools: AgentToolModule = {
               save_to_media: { type: 'boolean' },
               alt_text: { type: 'string' },
             },
+            additionalProperties: false,
+          },
+        },
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'trace_image_to_svg',
+          description:
+            'Trace a raster logo/image (PNG/JPEG/WebP) to SVG via Potrace. Saves to the media library by default. Best for flat Ideogram logo concepts.',
+          parameters: {
+            type: 'object',
+            properties: {
+              ...IMAGE_SOURCE_PROPS,
+              threshold: {
+                type: 'number',
+                description: 'Binarization threshold 0–255 (default 128). Higher = more white.',
+              },
+              save_to_media: {
+                type: 'boolean',
+                description: 'When false, returns inline svg in the response instead of saving (default true).',
+              },
+              alt_text: { type: 'string' },
+              slug: { type: 'string', description: 'Optional media library slug for the SVG.' },
+            },
+            additionalProperties: false,
+          },
+        },
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'apply_generated_logo_to_company',
+          description:
+            'End-to-end: trace an Ideogram/media-library raster to SVG when possible, then set Admin → Company logo or icon. Falls back to raster if tracing fails (use_raster_fallback, default true).',
+          parameters: {
+            type: 'object',
+            properties: {
+              media_id: { type: 'string', description: 'Media library id or slug from generate_logo_concepts / save_to_media.' },
+              slot: { type: 'string', description: 'logo (default) or icon — not og.' },
+              trace: {
+                type: 'boolean',
+                description: 'When false, apply raster/SVG as-is without tracing (default true for rasters).',
+              },
+              use_raster_fallback: {
+                type: 'boolean',
+                description: 'When tracing fails, apply the original raster logo (default true).',
+              },
+              threshold: { type: 'number', description: 'Potrace threshold when tracing.' },
+            },
+            required: ['media_id'],
             additionalProperties: false,
           },
         },
@@ -655,5 +866,7 @@ export const ideogramAgentTools: AgentToolModule = {
     list_generated_images: handle_list_generated_images,
     generate_logo_concepts: handle_generate_logo_concepts,
     generate_social_post_image: handle_generate_social_post_image,
+    trace_image_to_svg: handle_trace_image_to_svg,
+    apply_generated_logo_to_company: handle_apply_generated_logo_to_company,
   },
 };

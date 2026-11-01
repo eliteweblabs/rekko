@@ -22,6 +22,8 @@ const TOOL_LABELS: Record<string, string> = {
   save_image_to_project: 'Saving image to project',
   list_generated_images: 'Listing generated images',
   generate_logo_concepts: 'Generating logo concepts',
+  trace_image_to_svg: 'Tracing logo to SVG',
+  apply_generated_logo_to_company: 'Applying logo to company branding',
   generate_social_post_image: 'Generating social post image',
   exec_wp: 'Managing WordPress',
   wp_list_content: 'Listing WordPress content',

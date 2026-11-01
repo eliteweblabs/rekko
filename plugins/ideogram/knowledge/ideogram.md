@@ -1,74 +1,41 @@
-# Ideogram AI images
+# Ideogram — AI images & company logos
 
-Custom image generation for pages, decks, social posts, and logos via Ideogram 3 on the Reave App server (`IDEOGRAM_API_KEY` — never expose to the browser).
+Requires **Ideogram** add-on and `IDEOGRAM_API_KEY` on the Railway service.
 
-## Requirements
+## Chat → Admin company logo (hands-off)
 
-1. `ideogram` in install config `features[]`, **or** `website` (bundles image tools with the client website pack)
-2. `IDEOGRAM_API_KEY` on the Reave App Railway service
-3. Optional: `IDEOGRAM_MODEL` (default `ideogram-3`)
+Preferred end-to-end flow for replacing the **header wordmark** without manual upload/crop:
 
-When the **ideogram** (or **website**) module is on, all tools below are registered for the agent and this playbook is visible. If `IDEOGRAM_API_KEY` is missing, calls return a configuration error until the key is set on the Reave App service.
+1. **`generate_logo_concepts`** — `prompt` = brand brief, `save_to_media: true`, `num_images: 4` (design style, square).
+2. Show the user concept URLs or media ids; pick one (or let them choose in chat).
+3. **`apply_generated_logo_to_company`** — `media_id` from step 1, `slot: logo` (default). Traces raster → SVG when possible, then updates Admin → Company.
+4. **`get_company_settings`** — confirm `logo_public_url` / branding.
 
-## When to use which tool
+If tracing fails (photo-real gradients, SVG too large), the apply tool can fall back to **raster logo** when `use_raster_fallback: true` (default).
 
-| Need | Tool |
-|------|------|
-| New image from a text prompt | `generate_image` |
-| Several concepts at once | `generate_image_variations` or `generate_image` with `num_images` |
-| Logo / brand mark concepts | `generate_logo_concepts` |
-| Instagram / social sizing | `generate_social_post_image` (`format`: square, portrait, story, landscape, feed, pin) |
-| Keep a permanent URL | `generate_image` with **`save_to_media: true`**, or `save_image_to_media` after generate |
-| Change an existing image with a prompt | `remix_image` |
-| Enlarge resolution | `upscale_image` (`upscale_factor`: x2, x4, x8) |
-| Inpaint a region | `edit_image` with `mask_url` / `mask_media_id` / `mask_base64` (black = repaint) |
-| Inpaint unavailable | `edit_image` without mask → remix |
-| Reverse-engineer a prompt | `describe_image` |
-| Attach to a client project | `save_image_to_project` (project `slug` + image source) |
-| Browse past saves | `list_generated_images` (media library rows tagged `ideogram`) |
+Manual steps (same outcome):
 
-## Image inputs (remix, upscale, edit, describe, save)
+- `trace_image_to_svg` — save traced SVG to the media library.
+- `set_company_branding_from_media` — core tool; pass traced SVG or original PNG `media_id`, `slot: logo | icon | og`.
 
-Provide **one** of:
+**OG share image** must stay raster — use `set_company_branding_from_media` with `slot: og` and a PNG/JPEG from Ideogram (not traced SVG).
 
-- `url` — public HTTPS URL (Ideogram temporary links work briefly)
-- `media_id` — media library UUID or slug
-- `data_base64` — raw or `data:image/…;base64,…`
+## Other tools
 
-## Media library workflow (required for the live site)
+| Tool | Use |
+|------|-----|
+| `generate_image` | General prompts; `save_to_media` for permanent `/api/media/{slug}` URLs |
+| `remix_image` / `edit_image` | Refine a concept from `media_id` |
+| `upscale_image` | Sharpen before trace (x2) |
+| `describe_image` | Caption / prompt suggestion |
+| `save_image_to_media` | Persist temporary Ideogram URLs |
+| `generate_social_post_image` | Preset aspect ratios for posts |
 
-Ideogram CDN URLs **expire**. For anything the owner will use on the website or in a deck:
+## Tracing limits
 
-1. Generate with `save_to_media: true`, **or**
-2. `generate_image` then `save_image_to_media` on each `url`
-3. Set a stable **slug** when saving; reference **`/api/media/{slug}`** from the website repo (see `content-management` Images section)
-4. Do **not** commit large hero images to the website git repo
+Potrace works best on **flat, high-contrast** marks (design-style logo concepts). Soft shading and many colors produce huge or messy SVGs. Prompt for: white or solid background, minimal mark, vector-friendly, 1–2 ink colors.
 
-Saved Ideogram rows use media category `ideogram` and appear in Admin → Media like other uploads.
+## Website vs company logo
 
-## Shortcuts
-
-- **`generate_logo_concepts`** — design style, square, default 4 variations; pass `prompt` or `brand`
-- **`generate_social_post_image`** — prepends social-safe art direction; picks aspect from `format`
-
-## Admin → Company logo (header wordmark)
-
-1. `generate_image` with `save_to_media: true` (square logo concepts: `generate_logo_concepts`)
-2. `set_company_branding_from_media` with `media_id` and `slot: "logo"` — no manual upload/crop
-3. Optional: `get_company_settings` to confirm `logo_public_url`
-
-Site repo hero/inline images still use `/api/media/{slug}` via `write_github_file` — that is separate from the header logo in Company settings.
-
-## Pair with website editor
-
-When updating site imagery: `generate_image` (with `save_to_media`) → note `publicUrl` / slug → `write_github_file` to point the page at `/api/media/{slug}`. Stock alternative: `search_stock_photos` (Pexels attribution rules apply).
-
-## Health
-
-`GET /api/health` reports `ideogram` configured when `IDEOGRAM_API_KEY` is set.
-
-## Common mistakes
-
-- Claiming Ideogram is unavailable without checking this install’s tool manifest (`GET /api/admin/agent-tools` when signed in) or calling `list_knowledge` / `read_knowledge` slug `ideogram`
-- Using expired Ideogram URLs on the live site instead of the media library
-- Confusing **Cursor’s** Ideogram MCP (developer docs only) with **Reave admin chat** tools on the deployed app
+- **Company logo** — Admin → Company header (`/api/branding/logo`); use apply/trace flow above.
+- **Site hero / page art** — media library + `write_github_file` in the website repo; do not confuse with company branding.

@@ -559,7 +559,7 @@ export function formatClientWebsiteToolInventory(opts: {
   if (opts.ideogram) {
     lines.push(
       opts.ideogramActive
-        ? '- AI images: Ideogram tools active — read_knowledge slug "ideogram" for the full tool list (generate_image + save_to_media, remix, upscale, edit, describe, etc.). Prefer save_to_media for permanent library URLs.'
+        ? '- AI images: Ideogram tools active — read_knowledge slug "ideogram" (generate_logo_concepts → apply_generated_logo_to_company for Admin logo; trace_image_to_svg; save_to_media for library URLs).'
         : '- AI images: module is on; Ideogram needs IDEOGRAM_API_KEY.',
     );
   }
