@@ -18,6 +18,7 @@ import { railwayModule } from './core/railway';
 import { railwayProvisionModule } from './core/railwayProvision';
 import { craterPaymentModesModule } from './core/craterPaymentModes';
 import { contentManagementModule } from '../../../plugins/content-management/agentTools';
+import { companySettingsModule } from './core/company';
 import { activeAgentToolModules } from '../pluginRegistry';
 import type { AgentToolModule } from './types';
 
@@ -81,6 +82,7 @@ import type { AgentToolModule } from './types';
  */
 const CORE_AGENT_TOOL_MODULES: AgentToolModule[] = [
   knowledgeModule,
+  companySettingsModule,
   workModule,
   emailInboxModule,
   todosModule,

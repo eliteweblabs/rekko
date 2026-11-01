@@ -51,6 +51,14 @@ Saved Ideogram rows use media category `ideogram` and appear in Admin → Media 
 - **`generate_logo_concepts`** — design style, square, default 4 variations; pass `prompt` or `brand`
 - **`generate_social_post_image`** — prepends social-safe art direction; picks aspect from `format`
 
+## Admin → Company logo (header wordmark)
+
+1. `generate_image` with `save_to_media: true` (square logo concepts: `generate_logo_concepts`)
+2. `set_company_branding_from_media` with `media_id` and `slot: "logo"` — no manual upload/crop
+3. Optional: `get_company_settings` to confirm `logo_public_url`
+
+Site repo hero/inline images still use `/api/media/{slug}` via `write_github_file` — that is separate from the header logo in Company settings.
+
 ## Pair with website editor
 
 When updating site imagery: `generate_image` (with `save_to_media`) → note `publicUrl` / slug → `write_github_file` to point the page at `/api/media/{slug}`. Stock alternative: `search_stock_photos` (Pexels attribution rules apply).
