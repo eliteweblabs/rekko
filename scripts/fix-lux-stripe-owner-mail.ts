@@ -10,7 +10,12 @@
  *
  * Run: set -a && source .env && set +a && npx tsx scripts/fix-lux-stripe-owner-mail.ts
  */
-import { cloudflareFindZone, cloudflareListDnsRecords, cloudflareDeleteDnsRecord } from '../src/lib/cloudflareClient.ts';
+import {
+  cloudflareFindZone,
+  cloudflareListDnsRecords,
+  cloudflareDeleteDnsRecord,
+  cloudflareUpsertDnsRecord,
+} from '../src/lib/cloudflareClient.ts';
 import { serverEnv } from '../src/lib/serverEnv.ts';
 import {
   resendCreateDomain,
@@ -126,6 +131,20 @@ async function main() {
   });
   if (!enable.ok) throw new Error(`enable routing: ${enable.error}`);
   console.log('[lux-stripe-mail] ✓ Email Routing enabled');
+
+  const apexTxt = await cloudflareListDnsRecords(zone.data.id, { type: 'TXT' });
+  if (apexTxt.ok) {
+    const onApex = apexTxt.data.filter((r) => r.name.toLowerCase().replace(/\.$/, '') === APEX);
+    const spf =
+      'v=spf1 include:_spf.mx.cloudflare.net include:amazonses.com ~all';
+    const up = await cloudflareUpsertDnsRecord(
+      zone.data.id,
+      { type: 'TXT', name: APEX, content: spf, ttl: 1, proxied: false },
+      onApex,
+    );
+    if (up.ok) console.log('[lux-stripe-mail] ✓ apex SPF for Email Routing');
+    else console.warn('[lux-stripe-mail] ⚠ apex SPF:', up.error);
+  }
 
   const accounts = await cfFetch<{ id: string }[]>('/accounts?per_page=5');
   if (!accounts.ok || !accounts.data?.length) throw new Error('Cloudflare account list failed');

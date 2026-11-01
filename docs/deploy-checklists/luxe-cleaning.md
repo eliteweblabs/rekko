@@ -188,6 +188,10 @@ Cloudflare destination verification in that inbox when prompted.
 
 Do **not** put Resend Inbound MX on apex `@` for this install.
 
+Apex TXT SPF must include **`include:_spf.mx.cloudflare.net`** (plus `include:amazonses.com`
+if needed). Without it, Cloudflare Email Routing stays **`misconfigured/locked`** and
+**no mail forwards** (Stripe verify included). `fix:lux-stripe-owner-mail` sets this.
+
 Optional later: Google Workspace on apex for Felicia to read mail in Gmail/Apple Mail;
 keep **`inbound.lux.cleaning`** on Resend for the app either way.
 
