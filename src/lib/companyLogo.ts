@@ -15,8 +15,11 @@ export const BRANDING_ICON_SVG_PATH = '/api/branding/icon.svg';
 /** SVG favicon — preferred tab icon when admin has an icon mark. */
 export const FAVICON_SVG_PATH = '/favicon.svg';
 
-/** Runtime OG image — admin upload or letter tile; default og:image uses the logo URL. */
+/** Admin upload or letter tile when nothing else is configured. */
 export const BRANDING_OG_PATH = '/api/branding/og.png';
+
+/** 1200×630 PNG from the admin wordmark — default og:image when no custom share upload. */
+export const BRANDING_SHARE_LOGO_PATH = '/api/branding/share-logo.png';
 
 /** Public URL for uploaded square brand icons (favicons, avatars, PWA). */
 export const BRANDING_ICON_PATH = '/api/branding/icon';

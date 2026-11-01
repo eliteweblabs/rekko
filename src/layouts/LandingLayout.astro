@@ -1,13 +1,12 @@
 ---
 import Favicon from "../components/Favicon.astro";
 import ViewportMeta from "../components/ViewportMeta.astro";
-import { companyOgImageMetaSize, getCompanyConfig } from "../lib/companyConfig";
+import { absoluteOpenGraphImageUrl, companyOgImageMetaSize, getCompanyConfig } from "../lib/companyConfig";
 import { shareSafeText } from "../lib/shareSafeText";
 import { companyHtmlStyleAttr } from "../lib/companyBrandColors";
 import { landingBrandName, landingThemeColor, packHtmlStyleAttr } from "../lib/landingCompanyBrand";
 import { getSiteContent, siteLandingOgImage } from "../lib/siteContent";
 import { requestOrigin } from "../lib/requestOrigin";
-import { BRANDING_OG_PATH } from "../lib/companyLogo";
 import { OG_IMAGE_HEIGHT, OG_IMAGE_WIDTH } from "../lib/ogImageSize";
 import CookieNotice from "../components/CookieNotice.astro";
 import BrandLcpPreload from "../components/BrandLcpPreload.astro";
@@ -98,10 +97,8 @@ const themeColor =
 const origin = requestOrigin(Astro.request);
 const publicOrigin = company.domain ? `https://${company.domain}` : origin;
 const canonical = `${publicOrigin}${Astro.url.pathname}${Astro.url.search}`;
-const ogImageAbsolute = ogImage.startsWith("http") ? ogImage : `${origin}${ogImage}`;
-const logoShareFallback = company.logoPath && company.logoSource !== "hidden"
-  ? `${origin}${company.logoPath.startsWith("/") ? company.logoPath : `/${company.logoPath}`}`
-  : `${origin}${BRANDING_OG_PATH}`;
+const ogImageAbsolute = absoluteOpenGraphImageUrl(ogImage, publicOrigin);
+const logoShareFallback = absoluteOpenGraphImageUrl(company.ogImageUrl, publicOrigin);
 const ogImageSafe = /\.gif(?:\?|$)/i.test(ogImageAbsolute)
   ? logoShareFallback
   : ogImageAbsolute;

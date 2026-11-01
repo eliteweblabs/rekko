@@ -7,10 +7,10 @@ import Favicon from "../components/Favicon.astro";
 import BrandFontHead from "../components/BrandFontHead.astro";
 import SiteBackground from "../components/SiteBackground.astro";
 import { SITE } from "../config/site";
-import { BRANDING_OG_PATH } from "../lib/companyLogo";
 import { OG_IMAGE_HEIGHT as PORTAL_OG_HEIGHT, OG_IMAGE_WIDTH as PORTAL_OG_WIDTH } from "../lib/ogImageSize";
 import { companyHtmlStyleAttr } from "../lib/companyBrandColors";
-import { companyOgImageMetaSize, getCompanyConfig } from "../lib/companyConfig";
+import { absoluteOpenGraphImageUrl, companyOgImageMetaSize, getCompanyConfig } from "../lib/companyConfig";
+import { getPageSeoOverride } from "../lib/pageSeo";
 import { formatHtmlPageTitle, formatPwaAppTitle } from "../lib/pageTitle";
 import { shareSafeText } from "../lib/shareSafeText";
 import { isMarketingPagePath, getSiteContent, siteLandingOgImage } from "../lib/siteContent";
@@ -70,7 +70,8 @@ const company = await getCompanyConfig(Astro.request);
 const themeColor = themeColorProp ?? "#ffffff";
 const siteContent = getSiteContent();
 const description = descriptionProp ?? company.description;
-const ogImage = ogImageProp ?? company.ogImageUrl;
+const pageSeo = getPageSeoOverride(company.pageSeoOverrides, Astro.url.pathname);
+const ogImage = pageSeo?.ogImage?.trim() || ogImageProp || company.ogImageUrl;
 const pathNorm = Astro.url.pathname.replace(/\/$/, "") || "/";
 const isIndexPage = pathNorm === "/" || pathNorm === "/index.html";
 /**
@@ -91,13 +92,9 @@ const origin = requestOrigin(Astro.request);
 const publicOrigin = company.domain ? `https://${company.domain}` : origin;
 const canonical =
   canonicalUrl ?? `${publicOrigin}${Astro.url.pathname}${Astro.url.search}`;
-const ogImageAbsolute = ogImage.startsWith("http")
-  ? ogImage
-  : `${origin}${ogImage}`;
-/** Animated GIFs are a poor OG preview — fall back to the static logo mark. */
-const logoShareFallback = company.logoPath && company.logoSource !== "hidden"
-  ? `${origin}${company.logoPath.startsWith("/") ? company.logoPath : `/${company.logoPath}`}`
-  : `${origin}${BRANDING_OG_PATH}`;
+const ogImageAbsolute = absoluteOpenGraphImageUrl(ogImage, publicOrigin);
+/** Animated GIFs are a poor OG preview — fall back to the company default share image. */
+const logoShareFallback = absoluteOpenGraphImageUrl(company.ogImageUrl, publicOrigin);
 const ogImageSafe = /\.gif(?:\?|$)/i.test(ogImageAbsolute)
   ? logoShareFallback
   : ogImageAbsolute;

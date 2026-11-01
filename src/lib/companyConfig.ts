@@ -5,9 +5,12 @@
 import { SITE } from '../config/site';
 import { requestOrigin, siteBaseUrl, siteOriginFallback } from './requestOrigin';
 import {
+  BRANDING_ICON_SVG_PATH,
   BRANDING_LOGO_PATH,
+  BRANDING_LOGO_SVG_PATH,
   BRANDING_ICON_PATH,
   BRANDING_OG_PATH,
+  BRANDING_SHARE_LOGO_PATH,
   FAVICON_SVG_PATH,
   normalizePublicLogoPath,
 } from './companyLogo';
@@ -485,7 +488,29 @@ export function companyOgUsesStandardDimensions(ogImageUrl: string, company: Com
     return company.ogImageWidth === OG_IMAGE_WIDTH && company.ogImageHeight === OG_IMAGE_HEIGHT;
   }
   const path = ogImageUrl.split('?')[0] ?? '';
+  if (path === BRANDING_SHARE_LOGO_PATH) return true;
   return path.startsWith('/sites/') && path.endsWith('/og.png');
+}
+
+function isOgSafeShareImagePath(path: string): boolean {
+  const base = (path.split('?')[0] ?? '').trim().toLowerCase();
+  if (!base) return false;
+  if (base.endsWith('.svg')) return false;
+  if (base === BRANDING_LOGO_SVG_PATH || base === BRANDING_ICON_SVG_PATH) return false;
+  return true;
+}
+
+/** Admin wordmark with bytes or SVG — not a stale `/api/branding/logo` path with no asset. */
+function hasAdminWordmarkAsset(company: CompanyConfig): boolean {
+  if (company.logoSource === 'hidden') return false;
+  if (company.logoHasRaster || trim(company.logoSvg)) return true;
+  const path = trim(company.logoPath);
+  return (
+    company.logoSource === 'admin' &&
+    Boolean(path) &&
+    path !== BRANDING_LOGO_PATH &&
+    !path.startsWith('/api/branding/')
+  );
 }
 
 /** og:image width/height meta tags when dimensions are known. */
@@ -502,27 +527,40 @@ export function companyOgImageMetaSize(
   return null;
 }
 
-/** Resolve og:image — upload, site logo, company logo, icon, else letter route. */
+/** Resolve og:image — custom upload, site card, wordmark share PNG, logo, icon, letter tile. */
 export function companyOgImageUrl(company: CompanyConfig): string {
   if (company.ogHasRaster) {
     return `${BRANDING_OG_PATH}${brandingVersionQuery(company)}`;
   }
 
-  if (company.logoSource === 'admin') {
-    const adminShare = resolveCompanyLogoShareUrl(company);
-    if (adminShare) return adminShare;
+  if (hasAdminWordmarkAsset(company)) {
+    if (company.logoHasRaster || trim(company.logoSvg)) {
+      return `${BRANDING_SHARE_LOGO_PATH}${brandingVersionQuery(company)}`;
+    }
+    const legacy = resolveCompanyLogoShareUrl(company);
+    if (legacy && isOgSafeShareImagePath(legacy)) return legacy;
   }
 
   const siteOg = siteLandingOgImage(getSiteContent());
   if (siteOg) return siteOg;
 
   const logo = resolveCompanyLogoShareUrl(company);
-  if (logo) return logo;
+  if (logo && isOgSafeShareImagePath(logo)) return logo;
 
   const icon = resolveCompanyIconShareUrl(company);
   if (icon) return icon;
 
   return `${BRANDING_OG_PATH}${brandingVersionQuery(company)}`;
+}
+
+/** Root-relative or absolute URL for og:image / twitter:image (canonical site origin). */
+export function absoluteOpenGraphImageUrl(imagePath: string, publicOrigin: string): string {
+  const trimmed = imagePath.trim();
+  if (!trimmed) return '';
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  const origin = publicOrigin.replace(/\/$/, '');
+  const path = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+  return `${origin}${path}`;
 }
 
 function attachCompanyOgFields(config: Omit<CompanyConfig, 'ogImageUrl' | 'ogUsesLetterFallback'>): CompanyConfig {
