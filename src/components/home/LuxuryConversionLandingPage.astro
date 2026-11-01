@@ -9,6 +9,7 @@ import { getCompanyConfig } from "../../lib/companyConfig";
 import { contactTelHref } from "../../lib/contactApi";
 import { hasFeature } from "../../lib/features";
 import { isSiteAssistantConfigured } from "../../lib/siteAssistant";
+import { isHomepageVoiceWidgetEnabled } from "../../lib/vapiPlugin";
 import { resolveSiteChat } from "../../lib/siteChat";
 import ConversationalForm from "../ConversationalForm.astro";
 import SiteAssistantWidget from "../SiteAssistantWidget.astro";
@@ -67,6 +68,7 @@ const showFooterChat =
   Boolean(siteChat) &&
   hasFeature("portal_assistant") &&
   isSiteAssistantConfigured();
+const showHomepageVoice = isHomepageVoiceWidgetEnabled(company);
 
 const brand = landing.brandColors;
 const brandStyle = brand
@@ -88,6 +90,7 @@ const brandStyle = brand
   data-has-chat={showFooterChat ? "1" : "0"}
   data-has-promo={promo ? "1" : "0"}
   data-has-hero-form={showHeroForm ? "1" : "0"}
+  data-has-voice={showHomepageVoice ? "1" : "0"}
 >
   {
     promo ? (
@@ -475,6 +478,10 @@ const brandStyle = brand
     background: var(--lc-bg);
     padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
     font-family: Outfit, system-ui, sans-serif;
+  }
+
+  .lc[data-has-voice="1"] {
+    padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px));
   }
 
   .sr-only {

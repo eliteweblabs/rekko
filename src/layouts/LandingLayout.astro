@@ -16,6 +16,7 @@ import ScrollFadeIn from "../components/ScrollFadeIn.astro";
 import { formatHtmlPageTitle, formatPwaAppTitle } from "../lib/pageTitle";
 import PlausibleScript from "../components/PlausibleScript.astro";
 import SiteVoiceWidget from "../components/SiteVoiceWidget.astro";
+import { isHomepageVoiceWidgetEnabled } from "../lib/vapiPlugin";
 import { getPageSeoOverride, mergePageKeywords } from "../lib/pageSeo";
 import { formatSearchKeywordsMeta, resolvePageSearchKeywords } from "../lib/searchKeywords";
 import "../styles/scroll-fade.css";
@@ -47,6 +48,8 @@ const isEditorial = landing.variant === "editorial";
 const isPack = landing.variant === "pack";
 const isService = landing.variant === "service";
 const isLuxury = landing.variant === "luxury";
+const isLuxuryConversion =
+  isLuxury && landing.layoutProfile === "conversion";
 const isTech = landing.variant === "tech";
 const isVet = landing.variant === "vet";
 const pathNorm = Astro.url.pathname.replace(/\/$/, "") || "/";
@@ -221,7 +224,27 @@ const manifest = landing.manifest;
       />
     )}
   </head>
-  <body class={isVet ? "vet-body" : isPack ? "pack-body" : isEditorial ? "editorial-body" : isLuxury ? "luxury-body" : isService ? "service-body" : isTech ? "tech-body" : "landing-body"}>
+  <body
+    class:list={[
+      isVet
+        ? "vet-body"
+        : isPack
+          ? "pack-body"
+          : isEditorial
+            ? "editorial-body"
+            : isLuxury
+              ? "luxury-body"
+              : isService
+                ? "service-body"
+                : isTech
+                  ? "tech-body"
+                  : "landing-body",
+      isLuxuryConversion && "lc-conversion-body",
+      isLuxuryConversion &&
+        isHomepageVoiceWidgetEnabled(company) &&
+        "lc-conversion-voice",
+    ]}
+  >
     <slot />
     <SiteVoiceWidget />
     <ScrollFadeIn />
@@ -326,6 +349,34 @@ const manifest = landing.manifest;
     user-select: text;
   }
   body.luxury-body a { color: inherit; }
+
+  /* Lux conversion: sticky “Book” pill is center-bottom — keep Vapi off it. */
+  body.luxury-body.lc-conversion-body .vapi-widget-container.center-bottom {
+    left: auto;
+    right: max(1.25rem, env(safe-area-inset-right, 0px));
+    transform: none;
+    bottom: calc(5.35rem + env(safe-area-inset-bottom, 0px));
+    align-items: center;
+  }
+
+  body.luxury-body.lc-conversion-body .vapi-voice-button {
+    width: 56px;
+    height: 56px;
+    overflow: hidden;
+  }
+
+  body.luxury-body.lc-conversion-body .vapi-btn-icon {
+    color: rgba(0, 112, 112, 0.32);
+  }
+
+  body.luxury-body.lc-conversion-body .vapi-btn-icon :is(svg) {
+    width: 44px;
+    height: 44px;
+  }
+
+  body.luxury-body.lc-conversion-body .vapi-voice-button:hover .vapi-btn-icon {
+    color: rgba(0, 112, 112, 0.5);
+  }
 </style>
 ) : isService ? (
 <style is:global>
