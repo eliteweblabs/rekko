@@ -9,9 +9,9 @@ export const billingHelperCommands: HelperManifestEntry[] = [
   },
   {
     slash: '/invoices',
-    summary: 'List recent invoices',
-    template: 'List my recent Crater invoices.',
-    example: 'List my recent Crater invoices.',
+    summary: 'List Crater invoices (optionally by date range)',
+    template: 'How much did we bill in [month/year]?',
+    example: 'How much did we bill in October 2025?',
   },
   {
     slash: '/invoice-pay',

@@ -212,7 +212,24 @@ async function handle_search_customers(args: Record<string, unknown>, _ctx: Tool
 async function handle_list_recent_invoices(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
   const result = await craterListInvoices();
   if (!result.ok) return JSON.stringify({ error: result.error, status: result.status });
-  return JSON.stringify({ count: result.data.count, invoices: result.data.invoices?.slice(0, 20) ?? [] });
+  let invoices = result.data.invoices ?? [];
+  const fromDate = typeof args.from_date === 'string' ? args.from_date.trim() : '';
+  const toDate = typeof args.to_date === 'string' ? args.to_date.trim() : '';
+  if (fromDate && toDate) {
+    invoices = invoices.filter((inv) => {
+      const d = inv.invoice_date ?? '';
+      return d >= fromDate && d <= toDate;
+    });
+  }
+  const totalBilled = invoices.reduce((sum, inv) => sum + (Number.isFinite(inv.total) ? inv.total : 0), 0);
+  return JSON.stringify({
+    count: invoices.length,
+    total_in_list: result.data.count,
+    from_date: fromDate || undefined,
+    to_date: toDate || undefined,
+    total_billed: Math.round(totalBilled * 100) / 100,
+    invoices,
+  });
 }
 
 async function handle_get_invoice(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
@@ -327,7 +344,7 @@ async function handle_list_recurring_invoices(args: Record<string, unknown>, _ct
   if (!result.ok) return JSON.stringify({ error: result.error, status: result.status });
   return JSON.stringify({
     count: result.data.count,
-    recurring_invoices: result.data.recurring_invoices?.slice(0, 20) ?? [],
+    recurring_invoices: result.data.recurring_invoices ?? [],
   });
 }
 
@@ -420,8 +437,16 @@ export const billingModule: AgentToolModule = {
               type: 'function',
               function: {
                 name: 'list_recent_invoices',
-                description: 'List recent invoices from Crater with status, totals, and links.',
-                parameters: { type: 'object', properties: {}, additionalProperties: false },
+                description:
+                  'List all Crater invoices (newest first). No row cap — the full company list is returned. For a month, quarter, or custom range, pass from_date and to_date (YYYY-MM-DD); the response includes total_billed for that range. Sum invoice totals by invoice_date for "how much we billed"; paid_status reflects collection state on those invoices.',
+                parameters: {
+                  type: 'object',
+                  properties: {
+                    from_date: { type: 'string', description: 'Optional range start (YYYY-MM-DD), inclusive' },
+                    to_date: { type: 'string', description: 'Optional range end (YYYY-MM-DD), inclusive' },
+                  },
+                  additionalProperties: false,
+                },
               },
             },
             {

@@ -29,7 +29,7 @@ All custom routes require header **`X-Crater-Api-Token`** equal to Crater's `CRA
 |--------|------|-----------|
 | GET | `/api/custom/branding` | _(admin branding: colors + logoEmailUrl from reave `/api/branding`)_ |
 | POST | `/api/custom/create-invoice` | `create_invoice` |
-| GET | `/api/custom/invoices` | `list_recent_invoices` |
+| GET | `/api/custom/invoices` | `list_recent_invoices` (full list, no cap) |
 | GET | `/api/custom/payments` | _(client portal payment history)_ |
 | GET | `/api/custom/invoice/{id}` | `get_invoice` |
 | PUT | `/api/custom/invoice/{id}` | `update_invoice` |
@@ -47,6 +47,13 @@ All custom routes require header **`X-Crater-Api-Token`** equal to Crater's `CRA
 | POST | `/api/custom/repair-invoice-numbers` | `repair_invoice_numbers` |
 | POST | `/api/custom/repair-payment-numbers` | `repair_payment_numbers` |
 | POST | `/api/custom/reset-invoices` | `reset_invoices` |
+
+## Period totals (agent)
+
+- `list_recent_invoices` returns **all** invoices from `GET /api/custom/invoices` — not a 20-row sample.
+- For "how much did we bill last month / in October / Q3", call the tool with **`from_date`** and **`to_date`** (YYYY-MM-DD, inclusive on `invoice_date`). The tool response includes **`total_billed`** for that window.
+- **Billed** = sum of invoice `total` by `invoice_date`. **Collected** in a period = sum payments by `payment_date` (use `GET /api/custom/payments` or Crater Reports if you need cash-basis totals).
+- Only if you use `/api/v1/invoices` directly: paginate with `per_page=100` and repeat `page=2`, `page=3`, … until no rows remain.
 
 Prices in create/add payloads are **whole dollars** (Crater stores cents). `record_payment` `payment_mode` is a Crater payment mode **name** (Settings → Payment Modes), not a fixed enum — Apple Pay, Venmo, Zelle, Stripe, Cash, Bank Transfer, or any custom mode. It may return HTTP 300 with `needs_selection` when customer, invoice, or payment_mode is ambiguous or missing.
 
