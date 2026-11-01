@@ -4,7 +4,7 @@ import ViewportMeta from "../components/ViewportMeta.astro";
 import { absoluteOpenGraphImageUrl, companyOgImageMetaSize, getCompanyConfig } from "../lib/companyConfig";
 import { shareSafeText } from "../lib/shareSafeText";
 import { companyHtmlStyleAttr } from "../lib/companyBrandColors";
-import { landingBrandName, landingThemeColor, packHtmlStyleAttr } from "../lib/landingCompanyBrand";
+import { landingBrandName, landingThemeColor, packHtmlStyleAttr, packLandingThemeColor } from "../lib/landingCompanyBrand";
 import { getSiteContent, siteLandingOgImage } from "../lib/siteContent";
 import { requestOrigin } from "../lib/requestOrigin";
 import { OG_IMAGE_HEIGHT, OG_IMAGE_WIDTH } from "../lib/ogImageSize";
@@ -92,8 +92,12 @@ const themeColorFallback = isVet
           : isTech
             ? "#2f4a2c"
             : "#01061d";
+const packSitePalette = isPack && Boolean(landing.pack?.useSitePalette);
 const themeColor =
-  themeColorProp ?? landingThemeColor(company, landing.themeColor, themeColorFallback);
+  themeColorProp ??
+  (packSitePalette
+    ? packLandingThemeColor(company, landing.themeColor, true)
+    : landingThemeColor(company, landing.themeColor, themeColorFallback));
 const origin = requestOrigin(Astro.request);
 const publicOrigin = company.domain ? `https://${company.domain}` : origin;
 const canonical = `${publicOrigin}${Astro.url.pathname}${Astro.url.search}`;
@@ -103,7 +107,7 @@ const ogImageSafe = /\.gif(?:\?|$)/i.test(ogImageAbsolute)
   ? logoShareFallback
   : ogImageAbsolute;
 const htmlStyle = isPack
-  ? packHtmlStyleAttr(company)
+  ? packHtmlStyleAttr(company, { useSitePalette: packSitePalette })
   : isEditorial || isLuxury || isService || isTech || isVet
     ? undefined
     : companyHtmlStyleAttr(company.fonts, company.brandPrimary, company.brandSecondary, company.headerLogoSize);

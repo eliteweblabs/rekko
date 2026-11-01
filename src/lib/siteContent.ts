@@ -156,6 +156,11 @@ export type SiteLandingPackPhoto = {
 
 /** PDX Paws–style neighborhood pack landing (marquee, service cards, photo wall). */
 export type SiteLandingPackConfig = {
+  /**
+   * Keep pack-landing.css bark/cream/gold palette from site JSON — do not override
+   * with admin Company brand colors (Reave default indigo reads wrong on pack sites).
+   */
+  useSitePalette?: boolean;
   /** Staff sign-in (e.g. https://admin.client.com/admin/login). */
   signInHref?: string;
   marquee?: string[];

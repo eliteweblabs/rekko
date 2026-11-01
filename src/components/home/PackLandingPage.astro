@@ -31,7 +31,7 @@ const booking = pack.booking ?? {};
 
 const brandName = landingBrandName(company, landing.name);
 const logoSrc = landingWordmarkSrc(company, landing.heroLogo);
-const packBrandStyle = packBrandCssVarsInline(company);
+const packBrandStyle = pack.useSitePalette ? undefined : packBrandCssVarsInline(company);
 
 const phoneDisplay = (contact.phone || company.supportPhone || "").trim();
 const phoneDigits = contactTelHref(

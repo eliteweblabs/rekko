@@ -53,6 +53,19 @@ export function packBrandCssVarsInline(company: CompanyConfig): string {
   ].join('; ');
 }
 
-export function packHtmlStyleAttr(company: CompanyConfig): string {
+export function packHtmlStyleAttr(company: CompanyConfig, opts?: { useSitePalette?: boolean }): string {
+  if (opts?.useSitePalette) return brandFontCssVars(company.fonts) || '';
   return [brandFontCssVars(company.fonts), packBrandCssVarsInline(company)].filter(Boolean).join('; ');
+}
+
+/** Theme color for pack landings — site JSON wins when useSitePalette is set. */
+export function packLandingThemeColor(
+  company: CompanyConfig,
+  landingTheme?: string | null,
+  useSitePalette?: boolean,
+): string {
+  if (useSitePalette) {
+    return normalizeBrandColorHex(landingTheme) || '#1c1410';
+  }
+  return landingThemeColor(company, landingTheme, '#1c1410');
 }

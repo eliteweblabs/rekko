@@ -20,55 +20,69 @@
   "landing": {
     "variant": "pack",
     "title": "PDX Paws · Grooming, sitting, and pack life in Portland.",
-    "description": "Dog grooming, pet sitting, walks, training, and pack adventures in Portland, Oregon. Neighborhood care with a decade in canine wellness.",
-    "themeColor": "#1a2e1f",
+    "description": "Portland dog grooming, sitting, walks, pack adventures, and training. Join the pack — tag @pdx_paws to get your pup on the wall.",
+    "themeColor": "#1c1410",
     "eyebrow": "Portland's neighborhood pack",
     "name": "PDX Paws",
     "tagline": "Expert pet care in Portland",
     "heroHeadline": "Groom them. Sit them. Run with them.",
     "heroBody": "PDX Paws is dog grooming, sitting, walks, and trail days with people who actually like your dog. A decade in. Still a little feral in the best way.",
     "heroLogo": "/sites/pdx-paws/logo.png",
-    "ogImage": "/sites/pdx-paws/og.jpg",
+    "ogImage": "/sites/pdx-paws/logo.png",
     "scheduleUrl": "/form/schedule",
     "services": {
       "heading": "Services",
-      "intro": "From spa days to pack hikes, we meet dogs where they are — relaxed, enriched, and well cared for.",
+      "intro": "From spa days to pack hikes — personal, outdoorsy care for Portland dogs.",
       "items": [
         {
           "label": "Grooming",
-          "description": "Full-service grooming with patient, breed-aware handling.",
+          "kicker": "Spa day",
+          "description": "Bath, brush, and a little spa.",
           "bookHref": "/form/schedule"
         },
         {
-          "label": "Pet sitting & walks",
-          "description": "Trusted visits and walks while you're at work or away.",
+          "label": "Sitting & boarding",
+          "kicker": "Stay with us",
+          "description": "Home-like, not kennel-like.",
           "bookHref": "/form/schedule"
         },
         {
-          "label": "Training & pack adventures",
-          "description": "Obedience, enrichment, and outdoor adventures with experienced handlers.",
+          "label": "Dog walks",
+          "kicker": "Neighborhood",
+          "description": "Neighborhood energy dump.",
           "bookHref": "/form/schedule"
         },
         {
-          "label": "Boarding & daycare",
-          "description": "A calm, home-like environment when your dog stays with us.",
+          "label": "Pack adventures",
+          "kicker": "Trails",
+          "description": "Private land. Real trails.",
+          "bookHref": "/form/schedule",
+          "featured": true
+        },
+        {
+          "label": "Training",
+          "kicker": "Real life",
+          "description": "Positive reinforcement, real life.",
           "bookHref": "/form/schedule"
         }
       ]
     },
     "about": {
-      "heading": "Neighborhood pack care",
+      "heading": "We care for your dog like family.",
       "body": [
-        "PDX Paws is a Portland shop built on trust — a decade caring for local dogs with grooming, sitting, training, and pack outings.",
-        "We take a holistic approach: healthy routines, positive training, and adventures that fit your dog's energy and personality."
+        "At PDX Paws we take a whole-dog approach: pack adventures, training, comfortable boarding, and grooming and sitting that feel like the rest of the brand — personal, outdoorsy, and a little proud.",
+        "Over a decade in, we've lived in the art and science of canine care. Behavior work, trail days, neighborhood walks. We know dogs. We like yours."
       ]
     },
     "contact": {
       "heading": "Book or ask a question",
+      "phone": "(774) 230-8596",
+      "phoneHref": "tel:+17742308596",
       "email": "dusan@pdx-paws.com",
       "officeLines": ["Portland, Oregon"]
     },
     "pack": {
+      "useSitePalette": true,
       "signInHref": "https://admin.pdx-paws.com/admin/login",
       "marquee": [
         "Grooming",
@@ -82,32 +96,44 @@
         "headlineLines": ["Groom them.", "Sit them."],
         "headlineAccent": "Run with them.",
         "primaryCta": { "label": "Join the pack", "href": "/form/schedule" },
-        "secondaryCta": { "label": "See the pups", "href": "#wall" },
-        "mainImage": "/sites/pdx-paws/hero-main.jpg",
-        "mainAlt": "PDX Paws pack adventure in the Portland woods",
-        "insetImage": "/sites/pdx-paws/hero-inset.jpg",
+        "secondaryCta": { "label": "See the pups", "href": "#pack" },
+        "mainImage": "/sites/pdx-paws/hero/pack-snow.jpg",
+        "mainAlt": "PDX Paws pack adventure in the Portland snow",
+        "insetImage": "/sites/pdx-paws/hero/dusan-dog.jpg",
         "insetAlt": "PDX Paws team member with a happy dog",
-        "aboutImage": "/sites/pdx-paws/hero-main.jpg",
+        "aboutImage": "/sites/pdx-paws/hero/pack-field.jpg",
         "aboutAlt": "Dogs and handlers on a PDX Paws outing"
       },
       "wall": {
-        "id": "wall",
-        "eyebrow": "Pack life",
-        "heading": "Happy dogs, Portland roots",
-        "intro": "A peek at the grooming, adventures, and calm care we bring to every visit.",
+        "id": "pack",
+        "eyebrow": "The pack",
+        "heading": "Tag us. We put you up.",
+        "intro": "Post your pup, tag @pdx_paws — the best shots land here.",
         "steps": [
           "Tell us about your dog and what you need.",
           "We match grooming, sitting, or adventure plans.",
           "Your pack member comes home tired, clean, and cared for."
         ],
         "photos": [
-          {
-            "src": "/sites/pdx-paws/wall-1.jpg",
-            "alt": "PDX Paws pack on the trail"
-          }
+          { "src": "/sites/pdx-paws/pack/01.jpeg", "alt": "PDX Paws pack on the trail" },
+          { "src": "/sites/pdx-paws/pack/02.jpeg", "alt": "Happy dog after grooming" },
+          { "src": "/sites/pdx-paws/pack/03.jpg", "alt": "Pack walk in Portland" },
+          { "src": "/sites/pdx-paws/pack/04.jpg", "alt": "Dogs playing outdoors" },
+          { "src": "/sites/pdx-paws/pack/05.jpg", "alt": "PDX Paws adventure day" },
+          { "src": "/sites/pdx-paws/pack/06.jpg", "alt": "Grooming and care" },
+          { "src": "/sites/pdx-paws/pack/08.jpg", "alt": "Pack hike" },
+          { "src": "/sites/pdx-paws/pack/09.jpg", "alt": "Dogs on the trail" },
+          { "src": "/sites/pdx-paws/pack/10.jpg", "alt": "Neighborhood walk" },
+          { "src": "/sites/pdx-paws/pack/11.jpg", "alt": "Boarding and play" },
+          { "src": "/sites/pdx-paws/pack/12.jpg", "alt": "Training session" },
+          { "src": "/sites/pdx-paws/pack/13.jpg", "alt": "Pack outing" },
+          { "src": "/sites/pdx-paws/pack/15.jpg", "alt": "Happy pup portrait" },
+          { "src": "/sites/pdx-paws/pack/16.jpg", "alt": "PDX Paws pack life" }
         ]
       },
       "social": {
+        "instagram": "pdx_paws",
+        "instagramUrl": "https://instagram.com/pdx_paws",
         "city": "Portland, OR",
         "mapsUrl": "https://maps.google.com/?q=Portland+OR"
       },
@@ -118,7 +144,7 @@
       },
       "nav": [
         { "href": "#services", "label": "Services" },
-        { "href": "#wall", "label": "Gallery" },
+        { "href": "#pack", "label": "The pack" },
         { "href": "#about", "label": "About" },
         { "href": "/form/schedule", "label": "Book", "primary": true }
       ]
