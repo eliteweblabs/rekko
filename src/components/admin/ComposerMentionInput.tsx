@@ -126,8 +126,10 @@ export function ComposerMentionInput({
         syncMentionEditorEmpty(el, '');
         return;
       }
+      // Dictation / IME updates the DOM before composer state catches up — trust DOM then.
+      // Slash commands, @ mentions, and other programmatic setText() updates composer first — render below.
       const domAhead = current.length > composerText.length + 2;
-      if (!composerText.trim() || domAhead) {
+      if (domAhead || !composerText.trim()) {
         composeTrace(
           'sync.dom-to-composer',
           {
@@ -138,12 +140,12 @@ export function ComposerMentionInput({
           domAhead ? 'warn' : 'info',
           { snap: domAhead },
         );
+        if ((composer.getState().text ?? '') !== current) composer.setText(current);
+        lastSerializedRef.current = current;
+        syncMentionEditorEmpty(el, current);
+        syncComposerFieldHeight(el);
+        return;
       }
-      if ((composer.getState().text ?? '') !== current) composer.setText(current);
-      lastSerializedRef.current = current;
-      syncMentionEditorEmpty(el, current);
-      syncComposerFieldHeight(el);
-      return;
     }
     if (current === composerText && !mentionEditorHasRawTokens(el)) {
       lastSerializedRef.current = composerText;

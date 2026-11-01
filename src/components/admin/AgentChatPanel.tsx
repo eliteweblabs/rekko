@@ -2407,7 +2407,10 @@ function HelperCommandsPanel({
               role="option"
               aria-selected={i === activeIdx}
               ref={i === activeIdx ? activeRef : undefined}
-              onClick={() => onPick(command)}
+              onPointerDown={(e) => {
+                e.preventDefault();
+                onPick(command);
+              }}
             >
               <span className="aui-helper-item-slash">{command.slash}</span>
               <span className="aui-helper-item-summary">{command.summary}</span>
@@ -2760,8 +2763,15 @@ function useSlashHelpers(
   }, [fieldRef]);
 
   const applyCommand = (command: AgentHelperCommand) => {
-    composer.setText(command.template);
-    setComposeText(command.template);
+    const template = command.template;
+    composer.setText(template);
+    setComposeText(template);
+    const el = fieldRef.current?.getElement();
+    if (el instanceof HTMLElement) {
+      renderMentionEditor(el, template);
+      syncMentionEditorEmpty(el, template);
+    }
+    propsRef.current?.onComposeDirty?.(template.trim().length > 0);
     clearBlurTimer();
     setHelpersOpen(false);
     focusInput();
@@ -2842,7 +2852,7 @@ function useSlashHelpers(
     e.preventDefault();
     const matched = matchHelperCommand(composeText, commands);
     if (matched && composeText.trim().toLowerCase() === matched.slash) {
-      composer.setText(matched.template);
+      applyCommand(matched);
       if (!sendBlocked) fireSend();
       return;
     }
