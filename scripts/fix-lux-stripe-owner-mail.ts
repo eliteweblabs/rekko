@@ -27,7 +27,8 @@ const OWNER = (process.env.OWNER_EMAIL ?? 'felicia@lux.cleaning').trim().toLower
 /** When Resend is at domain limit, forward owner mail to a real mailbox (Stripe verify path). */
 const OWNER_FORWARD =
   (process.env.OWNER_MAIL_FORWARD ?? 'ms.ftracy@gmail.com').trim().toLowerCase();
-const RESEND_INBOUND_MX = 'inbound-smtp.us-east-1.amazonaws.com';
+/** Legacy SES and current Resend Inbound MX hosts — must not sit on apex (Stripe verify). */
+const APEX_FORBIDDEN_MX = /inbound-smtp\.us-east-1\.amazonaws\.com|receive\.forge\.rmta\.net|\.rmta\.net$/i;
 const WEBHOOK = `https://${APEX}/api/email/inbound`;
 
 async function cfFetch<T>(path: string, init?: RequestInit): Promise<
@@ -112,7 +113,8 @@ async function main() {
   for (const mx of listed.data) {
     const name = mx.name.toLowerCase().replace(/\.$/, '');
     if (name !== APEX) continue;
-    if (!mx.content.includes(RESEND_INBOUND_MX)) continue;
+    if (/\.mx\.cloudflare\.net$/i.test(mx.content)) continue;
+    if (!APEX_FORBIDDEN_MX.test(mx.content) && !/amazonaws\.com$/i.test(mx.content)) continue;
     const del = await cloudflareDeleteDnsRecord(zone.data.id, mx.id);
     if (!del.ok) throw new Error(`delete apex MX: ${del.error}`);
     console.log(`[lux-stripe-mail] ✓ deleted apex MX → ${mx.content}`);
