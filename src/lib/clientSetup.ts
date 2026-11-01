@@ -389,6 +389,12 @@ export async function finishClientSetup(): Promise<ClientSetupState> {
 
 export async function reopenClientSetup(): Promise<ClientSetupState> {
   const progress = await getClientSetupProgress();
-  await setClientSetupProgress({ ...progress, dismissedUntil: null, finishedAt: null });
+  await setClientSetupProgress({
+    ...progress,
+    completed: [],
+    skipped: [],
+    dismissedUntil: null,
+    finishedAt: null,
+  });
   return getClientSetupState();
 }
