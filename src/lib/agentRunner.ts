@@ -932,7 +932,7 @@ async function runKnowledgeAgentInner(
   }
   if (hasIdeogramImageGen() && isIdeogramConfigured()) {
     sysParts.push(
-      'AI images (Ideogram): generate_image or generate_social_post_image / generate_logo_concepts. Set save_to_media true (or call save_image_to_media) so assets land in the media library with permanent publicUrl — temporary Ideogram URLs expire. remix_image, upscale_image, edit_image (inpaint with mask), describe_image, save_image_to_project, list_generated_images also available.',
+      'AI images (Ideogram): generate_image, save_image_to_media, remix/upscale/edit/describe, generate_logo_concepts, generate_social_post_image, save_image_to_project, list_generated_images. Prefer save_to_media on generate_image (or save_image_to_media after) — Ideogram URLs expire; permanent assets use media library slugs (/api/media/{slug}). Before claiming Ideogram is missing or listing tools from memory, call read_knowledge slug "ideogram" or search_knowledge "ideogram".',
     );
   }
   if (hasWebsiteEditor()) {
