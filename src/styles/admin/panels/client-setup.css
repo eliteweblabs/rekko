@@ -159,6 +159,82 @@
 .cs-wizard-import-status--info { color: var(--muted); }
 .cs-wizard-import-status--success { color: #16a34a; }
 .cs-wizard-import-status--error { color: #dc2626; }
+.cs-wizard-import-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.15rem;
+}
+.cs-wizard-import-picker-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+.cs-wizard-import-picker-title {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+.cs-wizard-import-search {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  background: var(--card, var(--surface-muted));
+  color: var(--fg);
+  font-size: 0.82rem;
+}
+.cs-wizard-import-picker-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.cs-wizard-import-picker-actions .brand-btn {
+  font-size: 0.72rem;
+  padding: 0.28rem 0.55rem;
+}
+.cs-wizard-import-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: min(42vh, 320px);
+  overflow: auto;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  background: var(--card, var(--surface-muted));
+}
+.cs-wizard-import-row + .cs-wizard-import-row {
+  border-top: 1px solid var(--panel-border);
+}
+.cs-wizard-import-row-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  padding: 0.45rem 0.55rem;
+  cursor: pointer;
+  font-size: 0.82rem;
+}
+.cs-wizard-import-row-label input {
+  margin-top: 0.15rem;
+  flex-shrink: 0;
+}
+.cs-wizard-import-row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  min-width: 0;
+}
+.cs-wizard-import-row-name {
+  font-weight: 600;
+  word-break: break-word;
+}
+.cs-wizard-import-row-sub {
+  font-size: 0.74rem;
+  color: var(--muted);
+  word-break: break-word;
+}
 .cs-wizard-push-status {
   margin: 0.5rem 0 0;
   font-size: 0.8rem;

@@ -130,18 +130,8 @@ function renderPushStep() {
   `;
 }
 
-function renderContactsImportStep(state) {
-  const count = Number(state.contactCount) || 0;
-  if (count > 0) {
-    return `
-      <h3 class="cs-wizard-step-title">Import your contacts</h3>
-      <p class="cs-wizard-lead">${count} contact${count === 1 ? '' : 's'} already in ${escHtml(state.brand?.name || 'this workspace')}.</p>
-      <p class="cs-wizard-note">You can import more anytime from Contacts → Import, or upload another file below.</p>
-    `;
-  }
+function renderContactsImportUploadBlock() {
   return `
-    <h3 class="cs-wizard-step-title">Import your contacts</h3>
-    <p class="cs-wizard-lead">Bring your existing rolodex in one shot. CardDAV (next step) keeps phones in sync afterward — it does not bulk-import iCloud or Google contacts by itself.</p>
     <div class="cs-wizard-tabs" role="tablist">
       <button type="button" class="cs-wizard-tab is-on" data-cs-import-tab="upload" role="tab">Upload file</button>
       <button type="button" class="cs-wizard-tab" data-cs-import-tab="help" role="tab">How to export</button>
@@ -152,19 +142,230 @@ function renderContactsImportStep(state) {
           <span>CSV or vCard (.vcf)</span>
           <input type="file" name="file" accept=".csv,.vcf,.vcard" required class="cs-wizard-import-file" />
         </label>
-        <button type="submit" class="brand-btn">Import now</button>
+        <div class="cs-wizard-import-picker" data-cs-import-picker hidden>
+          <div class="cs-wizard-import-picker-head">
+            <p class="cs-wizard-import-picker-title" data-cs-import-picker-title></p>
+            <input type="search" class="cs-wizard-import-search" data-cs-import-search placeholder="Search name, email, company…" autocomplete="off" />
+            <div class="cs-wizard-import-picker-actions">
+              <button type="button" class="brand-btn brand-btn-glass" data-cs-import-select-visible>Select shown</button>
+              <button type="button" class="brand-btn brand-btn-glass" data-cs-import-clear-visible>Clear shown</button>
+            </div>
+          </div>
+          <ul class="cs-wizard-import-list" data-cs-import-list role="list"></ul>
+        </div>
+        <button type="submit" class="brand-btn" data-cs-import-submit disabled>Choose a file first</button>
       </form>
       <p class="cs-wizard-import-status" data-cs-import-status hidden></p>
     </div>
     <div class="cs-wizard-pane" hidden data-cs-import-pane="help">
       <ul>
+        <li><strong>Work clients only:</strong> export a group or list from iPhone/Mac, or export everything and uncheck personal contacts in the picker below.</li>
         <li><strong>iPhone (all contacts):</strong> icloud.com → Contacts → Select All → Export vCard.</li>
-        <li><strong>Mac Contacts:</strong> File → Export → Export vCard.</li>
+        <li><strong>Mac Contacts:</strong> File → Export → Export vCard, or export a single group.</li>
         <li><strong>CSV:</strong> Headers <code>name,email,phone,company,notes</code>.</li>
       </ul>
       <p class="cs-wizard-note">Need the full page? <a href="/admin/import-contacts?returnTo=${encodeURIComponent('/admin?clientSetup=1')}">Open import contacts</a>.</p>
     </div>
   `;
+}
+
+function renderContactsImportStep(state) {
+  const count = Number(state.contactCount) || 0;
+  const lead =
+    count > 0
+      ? `${count} contact${count === 1 ? '' : 's'} already in ${escHtml(state.brand?.name || 'this workspace')}. Upload another export to add more — you can pick which rows to import.`
+      : 'Export from iPhone, Mac, or Gmail, then choose which contacts are work clients. CardDAV (next step) keeps phones in sync afterward — it does not bulk-import iCloud or Google by itself.';
+  return `
+    <h3 class="cs-wizard-step-title">Import your contacts</h3>
+    <p class="cs-wizard-lead">${lead}</p>
+    ${renderContactsImportUploadBlock()}
+  `;
+}
+
+function contactPickerSubtitle(row) {
+  const bits = [row.email, row.phone, row.company].filter(Boolean);
+  return bits.join(' · ');
+}
+
+/** @param {HTMLElement} form */
+function bindContactImportPicker(form, statusEl, onImported) {
+  /** @type {Set<number>} */
+  let selected = new Set();
+  /** @type {Array<{ index: number, name: string, email: string | null, phone: string | null, company: string | null }>} */
+  let previewRows = [];
+  let previewTotal = 0;
+  let previewTruncated = false;
+
+  const fileInput = form.querySelector('input[type="file"]');
+  const picker = form.querySelector('[data-cs-import-picker]');
+  const listEl = form.querySelector('[data-cs-import-list]');
+  const titleEl = form.querySelector('[data-cs-import-picker-title]');
+  const searchEl = form.querySelector('[data-cs-import-search]');
+  const submitBtn = form.querySelector('[data-cs-import-submit]');
+
+  function setSubmitLabel() {
+    if (!(submitBtn instanceof HTMLButtonElement)) return;
+    if (!previewRows.length) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Choose a file first';
+      return;
+    }
+    const n = selected.size;
+    submitBtn.disabled = n === 0;
+    submitBtn.textContent = n ? `Import ${n} selected` : 'Select contacts to import';
+  }
+
+  function updatePickerTitle() {
+    if (!titleEl) return;
+    const n = selected.size;
+    const totalLabel = previewTruncated ? `${previewTotal}+` : String(previewTotal);
+    titleEl.textContent = `${n} of ${totalLabel} selected`;
+  }
+
+  function visibleRows() {
+    const q = (searchEl instanceof HTMLInputElement ? searchEl.value : '').trim().toLowerCase();
+    if (!q) return previewRows;
+    return previewRows.filter((row) => {
+      const hay = `${row.name} ${row.email || ''} ${row.phone || ''} ${row.company || ''}`.toLowerCase();
+      return hay.includes(q);
+    });
+  }
+
+  function renderList() {
+    if (!listEl) return;
+    const rows = visibleRows();
+    listEl.innerHTML = rows
+      .map((row) => {
+        const checked = selected.has(row.index) ? ' checked' : '';
+        const sub = contactPickerSubtitle(row);
+        return `<li class="cs-wizard-import-row">
+          <label class="cs-wizard-import-row-label">
+            <input type="checkbox" data-cs-import-idx="${row.index}"${checked} />
+            <span class="cs-wizard-import-row-main">
+              <span class="cs-wizard-import-row-name">${escHtml(row.name)}</span>
+              ${sub ? `<span class="cs-wizard-import-row-sub">${escHtml(sub)}</span>` : ''}
+            </span>
+          </label>
+        </li>`;
+      })
+      .join('');
+    updatePickerTitle();
+    setSubmitLabel();
+  }
+
+  async function loadPreview(file) {
+    if (statusEl) {
+      statusEl.hidden = false;
+      statusEl.className = 'cs-wizard-import-status cs-wizard-import-status--info';
+      statusEl.textContent = 'Reading file…';
+    }
+    if (picker instanceof HTMLElement) picker.hidden = true;
+    previewRows = [];
+    selected = new Set();
+    previewTotal = 0;
+    previewTruncated = false;
+    setSubmitLabel();
+
+    const fd = new FormData();
+    fd.append('file', file);
+    const res = await adminFetch('/api/contacts/import-preview', { method: 'POST', body: fd });
+    const result = await readAdminJson(res, 'contacts import preview');
+    if (!result.ok) throw new Error(result.error || 'Could not read file');
+
+    previewRows = Array.isArray(result.contacts) ? result.contacts : [];
+    previewTotal = Number(result.total) || previewRows.length;
+    previewTruncated = Boolean(result.truncated);
+    selected = new Set(previewRows.map((row) => row.index));
+
+    if (picker instanceof HTMLElement) picker.hidden = previewRows.length === 0;
+    if (searchEl instanceof HTMLInputElement) searchEl.value = '';
+    renderList();
+
+    if (statusEl) {
+      if (previewTruncated) {
+        statusEl.hidden = false;
+        statusEl.className = 'cs-wizard-import-status cs-wizard-import-status--info';
+        statusEl.textContent = `Showing first ${previewRows.length} contacts. Narrow with search, or export a smaller group from your phone.`;
+      } else {
+        statusEl.hidden = true;
+      }
+    }
+  }
+
+  fileInput?.addEventListener('change', async () => {
+    if (!(fileInput instanceof HTMLInputElement) || !fileInput.files?.length) return;
+    try {
+      await loadPreview(fileInput.files[0]);
+    } catch (err) {
+      if (statusEl) {
+        statusEl.hidden = false;
+        statusEl.className = 'cs-wizard-import-status cs-wizard-import-status--error';
+        statusEl.textContent = err instanceof Error ? err.message : String(err);
+      }
+      setSubmitLabel();
+    }
+  });
+
+  searchEl?.addEventListener('input', () => renderList());
+
+  form.querySelector('[data-cs-import-select-visible]')?.addEventListener('click', () => {
+    visibleRows().forEach((row) => selected.add(row.index));
+    renderList();
+  });
+  form.querySelector('[data-cs-import-clear-visible]')?.addEventListener('click', () => {
+    visibleRows().forEach((row) => selected.delete(row.index));
+    renderList();
+  });
+
+  listEl?.addEventListener('change', (e) => {
+    const target = e.target;
+    if (!(target instanceof HTMLInputElement) || target.type !== 'checkbox') return;
+    const raw = target.getAttribute('data-cs-import-idx');
+    const idx = raw != null ? Number(raw) : NaN;
+    if (!Number.isInteger(idx)) return;
+    if (target.checked) selected.add(idx);
+    else selected.delete(idx);
+    updatePickerTitle();
+    setSubmitLabel();
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!(fileInput instanceof HTMLInputElement) || !fileInput.files?.length) return;
+    if (selected.size === 0) return;
+    if (submitBtn instanceof HTMLButtonElement) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Importing…';
+    }
+    if (statusEl) {
+      statusEl.hidden = false;
+      statusEl.className = 'cs-wizard-import-status cs-wizard-import-status--info';
+      statusEl.textContent = 'Importing contacts…';
+    }
+    try {
+      const fd = new FormData();
+      fd.append('file', fileInput.files[0]);
+      fd.append('updateExisting', 'false');
+      fd.append('indices', JSON.stringify([...selected].sort((a, b) => a - b)));
+      const res = await adminFetch('/api/contacts/import', { method: 'POST', body: fd });
+      const result = await readAdminJson(res, 'contacts import');
+      if (!result.ok) throw new Error(result.error || 'Import failed');
+      const { created = 0, updated = 0, skipped = 0, errors = [] } = result.results || {};
+      const okCount = created + updated;
+      if (statusEl) {
+        statusEl.className = 'cs-wizard-import-status cs-wizard-import-status--success';
+        statusEl.textContent = `Imported ${okCount} contact${okCount === 1 ? '' : 's'} (${skipped} skipped${errors.length ? `, ${errors.length} errors` : ''}).`;
+      }
+      if (okCount > 0) await onImported();
+    } catch (err) {
+      if (statusEl) {
+        statusEl.className = 'cs-wizard-import-status cs-wizard-import-status--error';
+        statusEl.textContent = err instanceof Error ? err.message : String(err);
+      }
+    } finally {
+      setSubmitLabel();
+    }
+  });
 }
 
 function renderCardDavStep(state) {
@@ -255,49 +456,12 @@ function bindStepInteractions(body, step) {
 
     const form = body.querySelector('[data-cs-import-form]');
     const statusEl = body.querySelector('[data-cs-import-status]');
-    form?.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const fileInput = form.querySelector('input[type="file"]');
-      if (!(fileInput instanceof HTMLInputElement) || !fileInput.files?.length) return;
-      const submitBtn = form.querySelector('button[type="submit"]');
-      if (submitBtn instanceof HTMLButtonElement) {
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'Importing…';
-      }
-      if (statusEl) {
-        statusEl.hidden = false;
-        statusEl.className = 'cs-wizard-import-status cs-wizard-import-status--info';
-        statusEl.textContent = 'Importing contacts…';
-      }
-      try {
-        const fd = new FormData();
-        fd.append('file', fileInput.files[0]);
-        fd.append('updateExisting', 'false');
-        const res = await adminFetch('/api/contacts/import', { method: 'POST', body: fd });
-        const result = await readAdminJson(res, 'contacts import');
-        if (!result.ok) throw new Error(result.error || 'Import failed');
-        const { created = 0, updated = 0, skipped = 0, errors = [] } = result.results || {};
-        const okCount = created + updated;
-        if (statusEl) {
-          statusEl.className = 'cs-wizard-import-status cs-wizard-import-status--success';
-          statusEl.textContent = `Imported ${okCount} contact${okCount === 1 ? '' : 's'} (${skipped} skipped${errors.length ? `, ${errors.length} errors` : ''}).`;
-        }
-        if (okCount > 0) {
-          await refreshSetupState();
-          renderWizard();
-        }
-      } catch (err) {
-        if (statusEl) {
-          statusEl.className = 'cs-wizard-import-status cs-wizard-import-status--error';
-          statusEl.textContent = err instanceof Error ? err.message : String(err);
-        }
-      } finally {
-        if (submitBtn instanceof HTMLButtonElement) {
-          submitBtn.disabled = false;
-          submitBtn.textContent = 'Import now';
-        }
-      }
-    });
+    if (form instanceof HTMLFormElement) {
+      bindContactImportPicker(form, statusEl, async () => {
+        await refreshSetupState();
+        renderWizard();
+      });
+    }
   }
 }
 

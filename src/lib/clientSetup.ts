@@ -210,7 +210,7 @@ export function buildClientSetupSteps(
     {
       id: 'contacts-import',
       title: 'Import your contacts',
-      summary: 'Upload a vCard or CSV export from iPhone, Mac, Gmail, or Outlook — or skip and add contacts one at a time.',
+      summary: 'Upload a vCard or CSV export, pick which contacts are work clients, or skip and add contacts one at a time.',
       required: false,
       include: flags.contactsApiConfigured,
       auto: flags.contactCount > 0,

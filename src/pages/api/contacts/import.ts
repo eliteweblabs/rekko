@@ -1,95 +1,14 @@
 import type { APIContext } from 'astro';
 import { createContact, isContactApiConfigured } from '../../../lib/contactApi';
-import { parseVCard } from '../../../lib/carddav/vcard';
+import {
+  contactImportDisplayName,
+  parseContactImportFile,
+  parseContactImportIndices,
+  pickContactsByIndices,
+} from '../../../lib/contactImportParse';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 
 export const prerender = false;
-
-/**
- * Parse CSV format: name,email,phone,company,notes
- * First line can be header (skipped if it contains "name" or "email").
- */
-function parseCSV(content: string): Array<{
-  name?: string;
-  email?: string;
-  phone?: string;
-  company?: string;
-  notes?: string;
-}> {
-  const lines = content.trim().split(/\r?\n/);
-  const contacts: Array<{
-    name?: string;
-    email?: string;
-    phone?: string;
-    company?: string;
-    notes?: string;
-  }> = [];
-
-  let startIdx = 0;
-  if (lines.length > 0) {
-    const firstLine = lines[0].toLowerCase();
-    if (firstLine.includes('name') || firstLine.includes('email')) {
-      startIdx = 1;
-    }
-  }
-
-  for (let i = startIdx; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (!line) continue;
-
-    const parts = line.split(',').map(p => p.trim().replace(/^["']|["']$/g, ''));
-    const [name, email, phone, company, notes] = parts;
-
-    if (!name && !email && !phone) continue;
-
-    contacts.push({
-      name: name || undefined,
-      email: email || undefined,
-      phone: phone || undefined,
-      company: company || undefined,
-      notes: notes || undefined,
-    });
-  }
-
-  return contacts;
-}
-
-/**
- * Parse vCard file(s). Multiple vCards can be concatenated in a single file.
- */
-function parseVCards(content: string): Array<{
-  name?: string;
-  email?: string;
-  phone?: string;
-  company?: string;
-  notes?: string;
-}> {
-  const contacts: Array<{
-    name?: string;
-    email?: string;
-    phone?: string;
-    company?: string;
-    notes?: string;
-  }> = [];
-
-  const vcards = content.split(/BEGIN:VCARD/i).slice(1);
-
-  for (const vcard of vcards) {
-    const vcardText = 'BEGIN:VCARD' + vcard;
-    const parsed = parseVCard(vcardText);
-    if (!parsed) continue;
-
-    contacts.push({
-      name: parsed.name,
-      email: parsed.email,
-      phone: parsed.phone,
-      company: parsed.company,
-      notes: parsed.notes,
-    });
-  }
-
-  return contacts;
-}
 
 export async function POST(context: APIContext): Promise<Response> {
   const json = (body: object, status = 200) =>
@@ -97,7 +16,6 @@ export async function POST(context: APIContext): Promise<Response> {
 
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
-  const { userId } = auth;
 
   if (!isContactApiConfigured()) {
     return json({ ok: false, error: 'CONTACT_API_BASE_URL is not configured' }, 503);
@@ -124,25 +42,17 @@ export async function POST(context: APIContext): Promise<Response> {
     return json({ ok: false, error: 'Failed to read file' }, 400);
   }
 
-  let parsedContacts: Array<{
-    name?: string;
-    email?: string;
-    phone?: string;
-    company?: string;
-    notes?: string;
-  }>;
-
-  const fileName = file.name.toLowerCase();
-  if (fileName.endsWith('.vcf') || fileName.endsWith('.vcard')) {
-    parsedContacts = parseVCards(content);
-  } else if (fileName.endsWith('.csv')) {
-    parsedContacts = parseCSV(content);
-  } else {
-    return json({ ok: false, error: 'Unsupported file type. Use .vcf or .csv files.' }, 400);
-  }
-
+  let parsedContacts = parseContactImportFile(content, file.name);
   if (parsedContacts.length === 0) {
     return json({ ok: false, error: 'No valid contacts found in file' }, 400);
+  }
+
+  const indices = parseContactImportIndices(formData.get('indices'));
+  if (indices !== null) {
+    if (indices.length === 0) {
+      return json({ ok: false, error: 'Select at least one contact to import' }, 400);
+    }
+    parsedContacts = pickContactsByIndices(parsedContacts, indices);
   }
 
   const results = {
@@ -160,14 +70,10 @@ export async function POST(context: APIContext): Promise<Response> {
       continue;
     }
 
-    const displayName = name || contact.email || contact.phone || 'Unknown';
+    const displayName = contactImportDisplayName(contact);
 
     try {
-      // Try to find existing contact by email or phone if update mode is enabled
       if (updateExisting && (contact.email || contact.phone)) {
-        // Check if contact exists
-        // For now, we'll just create new contacts, but this can be enhanced
-        // to search for existing contacts and update them
         const createResult = await createContact({
           name: displayName,
           email: contact.email,
@@ -208,4 +114,4 @@ export async function POST(context: APIContext): Promise<Response> {
   }
 
   return json({ ok: true, results }, 200);
-};
+}
