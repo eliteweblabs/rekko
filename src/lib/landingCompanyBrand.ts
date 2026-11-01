@@ -54,7 +54,8 @@ export function packBrandCssVarsInline(company: CompanyConfig): string {
 }
 
 export function packHtmlStyleAttr(company: CompanyConfig, opts?: { useSitePalette?: boolean }): string {
-  if (opts?.useSitePalette) return brandFontCssVars(company.fonts) || '';
+  /** Pack JSON sites ship Fredoka/Figtree/Caveat in pack-landing.css — not admin Company typography. */
+  if (opts?.useSitePalette) return '';
   return [brandFontCssVars(company.fonts), packBrandCssVarsInline(company)].filter(Boolean).join('; ');
 }
 

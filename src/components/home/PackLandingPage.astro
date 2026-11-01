@@ -105,6 +105,11 @@ const smsHref = phoneDigits
   ? `sms:+${phoneDigits}?&body=${encodeURIComponent(smsIntro)}`
   : scheduleUrl;
 const loginHref = pack.signInHref?.trim() || publicSignInHref(Astro.request);
+
+/** JSON lines often include trailing periods; template adds one for rhythm. */
+function packHeadlineLine(raw: string): string {
+  return raw.trim().replace(/\.+$/, "");
+}
 ---
 
 <div class="pack" data-pack-root style={packBrandStyle}>
@@ -139,7 +144,7 @@ const loginHref = pack.signInHref?.trim() || publicSignInHref(Astro.request);
             {
               bodyLines.map((line, i) => (
                 <>
-                  {line}
+                  {packHeadlineLine(line)}
                   {i < bodyLines.length - 1 || accent ? "." : ""}
                   {i < bodyLines.length - 1 ? <br /> : null}
                 </>
