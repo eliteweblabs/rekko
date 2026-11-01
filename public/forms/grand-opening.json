@@ -88,7 +88,7 @@
       "cf-questions": "Do you have the login and password for your {{registrar}} account? The faster we get access, the faster we launch.",
       "options": [
         { "value": "yes", "label": "Yes — I have login & password" },
-        { "value": "unsure", "label": "Not sure where to find it" },
+        { "value": "unsure", "label": "Not sure where to find it", "labelShort": "Unsure" },
         { "value": "no", "label": "No — I need help" }
       ]
     },

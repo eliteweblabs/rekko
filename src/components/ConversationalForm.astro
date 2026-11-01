@@ -108,6 +108,8 @@ const rootClass = [
 <style is:global>
   .conversational-form-root {
     --cf-input-h: 3rem;
+    container-type: inline-size;
+    container-name: conversational-form;
     max-width: 640px;
     margin: 0 auto;
     min-height: calc(100dvh - 4.5rem);
@@ -227,6 +229,55 @@ const rootClass = [
     background: var(--brand-glass-bg-hover, rgba(23, 23, 23, 0.07));
     border-color: var(--site-fg, #171717);
     transform: translateY(-1px);
+  }
+
+  .conversational-form-root .option-btn-label--short {
+    display: none;
+    white-space: nowrap;
+  }
+
+  .conversational-form-root .option-btn-label--full {
+    display: inline;
+  }
+
+  @container conversational-form (max-width: 26rem) {
+    .conversational-form-root .option-btn--responsive .option-btn-label--full {
+      display: none;
+    }
+
+    .conversational-form-root .option-btn--responsive .option-btn-label--short {
+      display: inline;
+    }
+
+    .conversational-form-root .options-wrapper--binary:not(.options-wrapper--compact-labels) {
+      flex-direction: column;
+      flex-wrap: wrap;
+    }
+
+    .conversational-form-root .options-wrapper--binary:not(.options-wrapper--compact-labels) .option-btn {
+      flex: 1 1 auto;
+      width: 100%;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .conversational-form-root .option-btn--responsive .option-btn-label--full {
+      display: none;
+    }
+
+    .conversational-form-root .option-btn--responsive .option-btn-label--short {
+      display: inline;
+    }
+
+    .conversational-form-root .options-wrapper--binary:not(.options-wrapper--compact-labels) {
+      flex-direction: column;
+      flex-wrap: wrap;
+    }
+
+    .conversational-form-root .options-wrapper--binary:not(.options-wrapper--compact-labels) .option-btn {
+      flex: 1 1 auto;
+      width: 100%;
+    }
   }
 
   .conversational-form-root .loading-msg {
@@ -1012,6 +1063,42 @@ const rootClass = [
     return el;
   }
 
+  function optionShortLabel(opt) {
+    const explicit = String(opt.labelShort ?? opt.shortLabel ?? "").trim();
+    if (explicit) return explicit;
+    const label = String(opt.label ?? "").trim();
+    if (!label) return "";
+    if (/^yes\b/i.test(label)) return "Yes";
+    if (/^no\b/i.test(label)) return "No";
+    if (/^not yet\b/i.test(label)) return "No";
+    const dash = label.split(/\s*[—–-]\s*/);
+    if (dash.length > 1) {
+      const head = dash[0].trim();
+      if (head.length >= 2 && head.length <= 24 && /[a-zA-Z]/.test(head)) return head;
+    }
+    return "";
+  }
+
+  function mountOptionButtonLabel(btn, opt) {
+    const full = String(opt.label ?? "").trim();
+    const short = optionShortLabel(opt);
+    btn.textContent = "";
+    if (!short || short === full) {
+      btn.textContent = full;
+      return false;
+    }
+    btn.classList.add("option-btn--responsive");
+    const fullEl = document.createElement("span");
+    fullEl.className = "option-btn-label option-btn-label--full";
+    fullEl.textContent = full;
+    const shortEl = document.createElement("span");
+    shortEl.className = "option-btn-label option-btn-label--short";
+    shortEl.textContent = short;
+    btn.appendChild(fullEl);
+    btn.appendChild(shortEl);
+    return true;
+  }
+
   function showOptionButtons(options, onPick) {
     clearOptionUi();
 
@@ -1020,11 +1107,12 @@ const rootClass = [
     if (options.length === 2) wrapper.classList.add("options-wrapper--binary");
     wrapper.id = "current-options";
 
+    let hasCompactLabels = false;
     options.forEach((opt) => {
       const btn = document.createElement("button");
       btn.className = "option-btn";
-      btn.textContent = opt.label;
       btn.type = "button";
+      if (mountOptionButtonLabel(btn, opt)) hasCompactLabels = true;
       btn.addEventListener("click", () => {
         wrapper.closest(".cf-msg")?.remove();
         wrapper.remove();
@@ -1032,6 +1120,7 @@ const rootClass = [
       });
       wrapper.appendChild(btn);
     });
+    if (hasCompactLabels) wrapper.classList.add("options-wrapper--compact-labels");
 
     if (HERO_CHAT) {
       const row = document.createElement("div");
