@@ -408,7 +408,11 @@ function buildVariablePatch(apexDomain: string, assistantId?: string): Record<st
     COMPANY_SUPPORT_PHONE: VAPI_PHONE,
     VAPI_PHONE_NUMBER: VAPI_PHONE,
     VAPI_CREATE_IF_MISSING: '1',
+    /** Header deploy bulb — GraphQL polls this project (Railway injects PROJECT/SERVICE id at runtime). */
+    RAILWAY_API_TOKEN: '${{ shared.RAILWAY_API_TOKEN }}',
   };
+  const webhookKey = process.env.RAILWAY_WEBHOOK_INGRESS_KEY?.trim();
+  if (webhookKey) vars.RAILWAY_WEBHOOK_INGRESS_KEY = webhookKey;
   const vapiKey = process.env.VAPI_API_KEY?.trim();
   const publicKey = process.env.PUBLIC_VAPI_PUBLIC_KEY?.trim();
   if (vapiKey) vars.VAPI_API_KEY = vapiKey;

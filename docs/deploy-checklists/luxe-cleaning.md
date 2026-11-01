@@ -138,6 +138,8 @@ INSTALL_CONFIG=luxe-cleaning VAPI_API_KEY=… npm run provision:vapi
 | `CRATER_API_TOKEN` | shared with the **crater** service |
 | `PUBLIC_BOOKING_API_URL` | `https://book.lux.cleaning` — browser booking form + calendar (requires redeploy after set) |
 | `REAVE_HUB_URL` | `https://rekko.studio` — punch list / shared admin with official hub |
+| `RAILWAY_API_TOKEN` | `${{ shared.RAILWAY_API_TOKEN }}` — header deploy bulb polls **this** Railway project (same repo push ≠ shared indicator across installs) |
+| `RAILWAY_WEBHOOK_INGRESS_KEY` | random secret; Lux **project** webhook → `https://lux.cleaning/api/webhooks/railway?key=…` with deploy building/deploying/queued + failure events |
 
 Site allowlist: `config/sites/luxe-cleaning-config.json` must include **`/form`** or middleware 404s `/form/lux-schedule` and other booking routes.
 
