@@ -135,7 +135,7 @@ import {
   appendAdminNoticeAction,
   NOTICE_ACTION_ICONS,
 } from './admin-notice.js?v=20260828a';
-import { escHtml, adminFetch, readAdminJson, readApiJson, adminApiErrorMessage, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, mountPanelSkeleton, resolveReviewAlertIconUrl, companyStaffAvatarUrl, bindClerkSsrSessionSync, installAdminApiFetchGuard, emailListAuthorIconHtml, ensureContactAuthorIconsReady, senderInitialsFromEmail, mountSidebarAuthorIcons, formatPhoneInput, phoneToStorage, isValidPhone, bindFormattedPhoneInputs, shouldSkipAdminBackgroundPoll, adminStaffUserId, performStaffSignOut } from './shared.js?v=20261026a';
+import { escHtml, adminFetch, readAdminJson, readApiJson, adminApiErrorMessage, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, mountPanelSkeleton, resolveReviewAlertIconUrl, companyStaffAvatarUrl, bindClerkSsrSessionSync, installAdminApiFetchGuard, emailListAuthorIconHtml, ensureContactAuthorIconsReady, senderInitialsFromEmail, mountSidebarAuthorIcons, formatPhoneInput, phoneToStorage, isValidPhone, bindFormattedPhoneInputs, shouldSkipAdminBackgroundPoll, adminStaffUserId, performStaffSignOut } from './shared.js?v=20261101a';
 import { createTracer } from '../shared/reave-diagnostic.js';
 
 const navDiag = createTracer('nav');
@@ -8192,7 +8192,7 @@ function defaultFieldValidator(el) {
 
 function getFormEditableFields(form) {
   return [...form.querySelectorAll(
-    'input:not([disabled]):not([type=file]):not([type=hidden]):not([type=color]), select, textarea',
+    'input:not([disabled]):not([readonly]):not([type=file]):not([type=hidden]):not([type=color]), select, textarea',
   )];
 }
 

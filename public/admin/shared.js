@@ -1553,6 +1553,10 @@ export function isValidPhone(value) {
 
 export function attachPhoneFormatter(input) {
   if (!(input instanceof HTMLInputElement) || input.dataset.phoneFormatted === '1') return;
+  const initialType = (input.getAttribute('type') || '').toLowerCase();
+  if (initialType === 'checkbox' || initialType === 'radio' || initialType === 'hidden' || input.readOnly) {
+    return;
+  }
   input.dataset.phoneFormatted = '1';
   input.type = 'tel';
   input.inputMode = 'tel';
@@ -1567,7 +1571,7 @@ export function attachPhoneFormatter(input) {
 
 export function bindFormattedPhoneInputs(root) {
   if (!root) return;
-  root.querySelectorAll('input[type="tel"], input[name*="phone" i]').forEach((el) => {
+  root.querySelectorAll('input[type="tel"]').forEach((el) => {
     if (el instanceof HTMLInputElement) attachPhoneFormatter(el);
   });
 }
