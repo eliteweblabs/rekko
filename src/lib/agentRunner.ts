@@ -20,6 +20,7 @@ import {
   hasWebsiteEditor,
 } from './features';
 import { formatAgentCapabilityInventory, formatClientWebsiteToolInventory } from './featureCatalog';
+import { collectPluginAgentBootstrapLines } from './pluginRegistry';
 import { isClerkConfigured } from './clerkClient';
 import { isGithubConfigured } from './githubClient';
 import { isOpsInstall } from './installConfig';
@@ -725,6 +726,14 @@ async function runKnowledgeAgentInner(
     'Project checklists: action items in job notes use markdown checkboxes (`- [ ]` / `- [x]`). Use toggle_work_item to check off completed work (by item_text or line_index). When invoicing for completed project work, call get_work_invoice_suggestions and use each item\'s description field on Crater line items (user provides price).',
     'Personal to-dos: create_todo / list_todos / update_todo / mark_todo_done / delete_todo. Punch list is a shared admin section both sides open (dashboard → Punch list). On a client install, create_todo with for_reave:true adds a feature request to that shared Punch list and the official reave owner\'s to-do (not the public client portal). On the official install, list_todos with shared:true shows incoming install requests tagged with the company name. Completing an item on official updates the install owner\'s Punch list on next refresh. Never use create_work for personal or punch-list tasks. The same personal list is also available via Siri Shortcuts on POST /api/siri. If to-do tools are unavailable (DATABASE_URL not set), say you do not have a to-do list tool yet — do not fake it with a job.',
     formatAgentCapabilityInventory(enabledFeatures()),
+    ...((): string[] => {
+      const bootstrap = collectPluginAgentBootstrapLines({ brand });
+      if (!bootstrap.length) return [];
+      return [
+        'Enabled plugin modules bootstrap their agent tools and playbooks when the module is on — use the tool names below (they are in your manifest) and read_knowledge for each playbook before claiming a module is missing:',
+        ...bootstrap,
+      ];
+    })(),
     'After tools, answer in plain text (short paragraphs, avoid huge markdown tables).',
     'Structured buttons: you may append ```json { "type": "button", "label": "…", "href": "https://…" } ``` blocks for useful external/deep links (projects, billing, docs). Never link to Admin → Sessions or suggest "open session" / "ask the agent" — the owner is already in this session. After create_work or update_work, use the exact profile_url and project_portal_url fields from the tool result for client profile and portal buttons — never put a job slug or business name in /c/… (portal paths use the contact uid UUID only). list_contacts and resolve_contact also return portal_url.',
     'Git: always commit and push to origin/main after every successful change. Never open a pull request (not even a draft). Never ask "should I commit?" — do it in the same turn. This overrides "only commit when asked." Playbook: read_knowledge slug "git-workflow".',
@@ -930,11 +939,6 @@ async function runKnowledgeAgentInner(
       'Stock photos: use search_stock_photos to find royalty-free imagery for pages, decks, and newsletters. Pexels terms require crediting the photographer and linking back to the photo\'s Pexels page wherever the image is displayed.',
     );
   }
-  if (hasIdeogramImageGen() && isIdeogramConfigured()) {
-    sysParts.push(
-      'AI images (Ideogram): generate_image, save_image_to_media, remix/upscale/edit/describe, generate_logo_concepts, generate_social_post_image, save_image_to_project, list_generated_images. Prefer save_to_media on generate_image (or save_image_to_media after) — Ideogram URLs expire; permanent assets use media library slugs (/api/media/{slug}). Before claiming Ideogram is missing or listing tools from memory, call read_knowledge slug "ideogram" or search_knowledge "ideogram".',
-    );
-  }
   if (hasWebsiteEditor()) {
     if (isOpsInstall()) {
       sysParts.push(
@@ -943,7 +947,7 @@ async function runKnowledgeAgentInner(
     } else {
       const siteRepo = githubWebsiteRepoSlug() || 'the configured website repo';
       sysParts.push(
-        `Agentic Website Editor: this install’s public website is ${siteRepo} — a separate front-end repo, not the reave.app. When the owner asks to change headline, nav, copy, or images: read_github_file first, then write_github_file on main in this same turn. Do not wait for them to say commit/save/publish. Casual phrases: “undo that” / “change it back” / “go back” / “never mind” / “put it back” / “I don’t like that” → undo_website_change. Pair with search_stock_photos or generate_image for imagery. Images belong in the media library (slug → /api/media/{slug}), not git. read_knowledge slug "content-management" or "website". Do not claim the site is updated unless write_github_file or undo_website_change succeeds.`,
+        `Agentic Website Editor: this install’s public website is ${siteRepo} — a separate front-end repo, not the reave.app. When the owner asks to change headline, nav, copy, or images: read_github_file first, then write_github_file on main in this same turn. Do not wait for them to say commit/save/publish. Casual phrases: “undo that” / “change it back” / “go back” / “never mind” / “put it back” / “I don’t like that” → undo_website_change. For imagery use stock_photos and/or ideogram modules when enabled (see plugin bootstrap above). Images belong in the media library (slug → /api/media/{slug}), not git. read_knowledge slug "content-management" or "website". Do not claim the site is updated unless write_github_file or undo_website_change succeeds.`,
       );
     }
   }

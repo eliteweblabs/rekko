@@ -5,7 +5,8 @@
  * Reave core never duplicates plugin playbooks in src/knowledge/.
  */
 import type { ReavePlugin } from '../../plugins/_shared/types';
-import type { AgentToolModule } from './agentTools/types';
+import type { AgentToolModule, ToolContext } from './agentTools/types';
+import { FEATURE_LABELS, type FeatureId } from './featureCatalog';
 import { hasFeature, hasIdeogramImageGen, hasStockPhotoSearch, hasWebsiteEditor } from './features';
 import { isCanonicalReaveInstall } from './installConfig';
 
@@ -101,7 +102,8 @@ export function getPlugin(id: string): ReavePlugin | undefined {
   return PLUGIN_BY_ID.get(id);
 }
 
-function pluginFeatureEnabled(plugin: ReavePlugin): boolean {
+/** Feature flag / bundle gate — when true, plugin knowledge and agent tools bootstrap. */
+export function pluginFeatureEnabled(plugin: ReavePlugin): boolean {
   if (!plugin.feature) return true;
   if (hasFeature(plugin.feature)) return true;
   if (plugin.feature === 'content_management') return hasWebsiteEditor();
@@ -123,10 +125,60 @@ export function isPluginKnowledgeActive(pluginId: string): boolean {
   return pluginFeatureEnabled(plugin);
 }
 
+/** Agent tools register when the module is enabled; handlers may error if `configured()` is false. */
 export function activeAgentToolModules(): AgentToolModule[] {
-  return REAVE_PLUGINS.filter(isPluginActive)
+  return REAVE_PLUGINS.filter((p) => pluginFeatureEnabled(p) && p.agentTools)
     .map((p) => p.agentTools)
     .filter((m): m is AgentToolModule => !!m);
+}
+
+/**
+ * Per-module agent bootstrap — playbook slugs + callable tool names for enabled modules.
+ * Injected into the admin system prompt so the model matches manifest to knowledge.
+ */
+export function collectPluginAgentBootstrapLines(ctx: ToolContext): string[] {
+  const lines: string[] = [];
+  for (const plugin of REAVE_PLUGINS) {
+    if (!pluginFeatureEnabled(plugin)) continue;
+
+    const slugs = pluginKnowledgeSlugs(plugin.id);
+    const mod = plugin.agentTools;
+    let toolNames: string[] = [];
+    if (mod) {
+      try {
+        if (mod.enabled(ctx)) {
+          toolNames = mod
+            .definitions(ctx)
+            .map((d) => d.function.name)
+            .filter(Boolean);
+        }
+      } catch {
+        /* definitions() threw — omit tool list for this module */
+      }
+    }
+
+    if (!slugs.length && !toolNames.length) continue;
+
+    const featureId = plugin.feature;
+    const label =
+      featureId && featureId in FEATURE_LABELS
+        ? FEATURE_LABELS[featureId as FeatureId]
+        : plugin.id;
+    const chunks: string[] = [`Module ${label} (${plugin.id}):`];
+    if (toolNames.length) {
+      chunks.push(`callable tools this session — ${toolNames.join(', ')}.`);
+    }
+    if (slugs.length) {
+      const primary = slugs[0];
+      const rest = slugs.length > 1 ? ` Related slugs: ${slugs.slice(1).join(', ')}.` : '';
+      chunks.push(`Playbook — read_knowledge slug "${primary}".${rest}`);
+    }
+    if (plugin.configured && !plugin.configured()) {
+      chunks.push('API/env not fully configured — tool calls may return a setup error until Railway vars are set.');
+    }
+    lines.push(chunks.join(' '));
+  }
+  return lines;
 }
 
 export function pluginsForFeature(feature: string): ReavePlugin[] {

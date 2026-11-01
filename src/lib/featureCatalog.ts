@@ -531,7 +531,7 @@ export function formatAgentCapabilityInventory(enabledIds: Iterable<string>): st
     'Sign-in on every install is Clerk (@clerk/astro): sessions, passkeys, phone, publishable keys. That is baseline on every package — not an optional module. User-admin tools (list/manage users, sessions, orgs) appear when CLERK_SECRET_KEY is set.',
     'Enabled optional modules on this install:',
     lines.length ? lines.join('\n') : '- (none listed)',
-    'Modules exist in the product even when not listed here. A tool missing from this turn means the module is off or a key is unset — not that the codebase lacks the integration.',
+    'Modules exist in the product even when not listed here. If a module is off, its tools and playbooks are not bootstrapped. If a module is on but an API key is unset, tools still appear and return a configuration error when called.',
   ].join('\n');
 }
 

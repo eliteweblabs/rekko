@@ -30,7 +30,6 @@ Call `undo_website_change`. Saying undo again undoes the undo.
 | Undo the last change | `undo_website_change` |
 | Confirm it is live | `check_deployment_status` |
 | Stock photos | `search_stock_photos` (Pexels, when configured) |
-| AI images | `generate_image`, `save_image_to_media`, etc. — `read_knowledge` slug `ideogram` |
 
 Writes use this install’s **GitHub App** (copied by the deploy wizard). Tokens are minted for the website repo only — never `eliteweblabs/rekko`. Railway / Kinsta APIs are **not** required.
 
@@ -69,7 +68,7 @@ Always **read before write**. For long pages, use `write_github_file` with `appe
 ## Images
 
 - **Stock:** `search_stock_photos` — credit photographer + link to Pexels wherever displayed
-- **AI (Ideogram):** `generate_image` with `save_to_media: true` (or `save_image_to_media`) — use `/api/media/{slug}` on the site; playbook slug `ideogram`
+- **AI (Ideogram add-on):** when the **ideogram** (or **website**) module is enabled, use Ideogram tools from the plugin bootstrap — `read_knowledge` slug `ideogram`; save to media library (`/api/media/{slug}`), not git.
 - **Uploads:** Admin → Media (or WebDAV drop folder). Give the file a stable **slug**, then reference `/api/media/{slug}` from the website repo.
 - Do **not** commit page-content images to git. Product chrome (icons, favicons) may stay in the website repo under `public/` or similar.
 

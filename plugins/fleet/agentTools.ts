@@ -47,7 +47,7 @@ async function handle_create_fleet_vehicle(args: Record<string, unknown>, _ctx: 
 
 export const fleetModule: AgentToolModule = {
   id: 'fleet',
-  enabled: () => hasFeature('fleet_tracking') && isFleetApiConfigured(),
+  enabled: () => hasFeature('fleet_tracking'),
   definitions(_ctx: ToolContext): AgentToolDef[] {
     return [
       {

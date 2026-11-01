@@ -61,7 +61,7 @@ async function handle_list_inventory_channels(_args: Record<string, unknown>, _c
 
 export const inventoryModule: AgentToolModule = {
   id: 'inventory',
-  enabled: () => hasFeature('inventory_sync') && isInventoryApiConfigured(),
+  enabled: () => hasFeature('inventory_sync'),
   definitions(_ctx: ToolContext): AgentToolDef[] {
     return [
       {

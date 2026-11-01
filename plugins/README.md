@@ -60,6 +60,14 @@ Clerk (`plugins/clerk-auth/`) is **core** — every package includes sign-in. It
 2. **`src/lib/localKnowledge.ts`** — globs `plugins/*/knowledge/**/*.md` (active plugins only)
 3. **`src/lib/agentTools/registry.ts`** — core modules + `activeAgentToolModules()` from manifests
 
+When a module is **enabled** on the install (`features[]` / Add-ons):
+
+- Its **playbooks** under `plugins/{id}/knowledge/` are visible to `read_knowledge`.
+- Its **`agentTools.ts`** handlers register in the admin agent manifest (API keys may still return setup errors until `configured()` passes).
+- **`collectPluginAgentBootstrapLines()`** injects tool names + playbook slugs into the system prompt.
+
+`isPluginActive()` (feature + configured) is for deploy/module status UI — not for hiding agent tools.
+
 No duplicate registration in core — add the manifest import once in `pluginRegistry.ts`.
 
 ## Creating a new plugin

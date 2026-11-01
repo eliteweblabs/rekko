@@ -109,7 +109,7 @@ const siteUrlProp = {
 
 export const wordpressContentAgentTools: AgentToolModule = {
   id: 'wordpress-content',
-  enabled: () => hasFeature('wordpress_content') && isWpConnectConfigured(),
+  enabled: () => hasFeature('wordpress_content'),
   definitions(_ctx: ToolContext): AgentToolDef[] {
     return [
       {

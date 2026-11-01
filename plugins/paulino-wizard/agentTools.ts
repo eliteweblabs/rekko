@@ -105,7 +105,7 @@ async function handle_book_dealership_test_drive(
 
 export const paulinoWizardModule: AgentToolModule = {
   id: 'paulino-wizard',
-  enabled: () => hasFeature('dealership_wizard') && isPaulinoWizardConfigured(),
+  enabled: () => hasFeature('dealership_wizard'),
   definitions(_ctx: ToolContext): AgentToolDef[] {
     return [
       {

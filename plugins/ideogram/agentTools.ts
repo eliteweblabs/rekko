@@ -404,7 +404,7 @@ const IMAGE_SOURCE_PROPS = {
 
 export const ideogramAgentTools: AgentToolModule = {
   id: 'ideogram',
-  enabled: () => hasIdeogramImageGen() && isIdeogramConfigured(),
+  enabled: () => hasIdeogramImageGen(),
   definitions(_ctx: ToolContext): AgentToolDef[] {
     return [
       {

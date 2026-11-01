@@ -49,7 +49,7 @@ async function handle_search_stock_photos(
 
 export const stockPhotosAgentTools: AgentToolModule = {
   id: 'pexels',
-  enabled: () => hasStockPhotoSearch() && isPexelsConfigured(),
+  enabled: () => hasStockPhotoSearch(),
   definitions(_ctx: ToolContext): AgentToolDef[] {
     return [
       {

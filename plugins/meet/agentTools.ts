@@ -69,7 +69,7 @@ async function handle_create_meeting_invite(args: Record<string, unknown>, _ctx:
 
 export const meetModule: AgentToolModule = {
   id: 'meet',
-  enabled: () => hasFeature('video_meet') && isGaleneConfigured(),
+  enabled: () => hasFeature('video_meet'),
   definitions(_ctx: ToolContext): AgentToolDef[] {
     return [
       {

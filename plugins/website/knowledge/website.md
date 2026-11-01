@@ -11,7 +11,7 @@ This install’s **web tools** are the client Website module. Use them to edit t
 | Undo the last edit | `undo_website_change` (“undo that”, “change it back”, “never mind”, “I don’t like that”) |
 | See what shipped | `get_git_status` / `get_recent_commits` / `check_deployment_status` |
 | Find a photo | `search_stock_photos` (Pexels, when the key is set) |
-| Custom AI image | `generate_image` (Ideogram, when the key is set) — `read_knowledge` slug `ideogram` |
+| Custom AI image | Ideogram module (`read_knowledge` slug `ideogram`) when **ideogram** or **website** is enabled |
 | Site playbook | `read_knowledge` slug `content-management` |
 
 ## What you do not have

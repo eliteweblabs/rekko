@@ -67,7 +67,7 @@ import type { AgentToolModule } from './types';
  * when RAILWAY_API_TOKEN is set, regardless of the dev_infra feature flag or
  * plugin load order.
  *
- * Ideogram image tools live in `plugins/ideogram/` (feature-gated `ideogram` + `IDEOGRAM_API_KEY`).
+ * Ideogram image tools live in `plugins/ideogram/` (feature-gated `ideogram` or `website`; API key required at call time).
  *
  * Crater payment-mode seeding (`seed_payment_modes`, `create_payment_mode`) lives in
  * `core/craterPaymentModes.ts` — always-on when CRATER_API_BASE_URL and

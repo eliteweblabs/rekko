@@ -16,7 +16,7 @@ export interface ReavePlugin {
   id: string;
   /** Optional module id. Omit for always-on core plugins (Clerk). */
   feature?: FeatureId;
-  /** When set, plugin is active only if this returns true (API token, DB, etc.). */
+  /** When set, module is "fully configured" for deploy UI — not required to register agent tools. */
   configured?: () => boolean;
   agentTools?: AgentToolModule;
 }

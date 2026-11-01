@@ -8,7 +8,7 @@ Custom image generation for pages, decks, social posts, and logos via Ideogram 3
 2. `IDEOGRAM_API_KEY` on the Reave App Railway service
 3. Optional: `IDEOGRAM_MODEL` (default `ideogram-3`)
 
-If the module is on but the key is missing, the install inventory says Ideogram needs a key — tools are **not** sent to the model until the key is set.
+When the **ideogram** (or **website**) module is on, all tools below are registered for the agent and this playbook is visible. If `IDEOGRAM_API_KEY` is missing, calls return a configuration error until the key is set on the Reave App service.
 
 ## When to use which tool
 

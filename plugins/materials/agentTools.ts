@@ -105,7 +105,7 @@ async function handle_list_materials_providers(_args: Record<string, unknown>, _
 
 export const materialsModule: AgentToolModule = {
   id: 'materials',
-  enabled: () => hasFeature('materials_pricing') && isMaterialsApiConfigured(),
+  enabled: () => hasFeature('materials_pricing'),
   definitions(_ctx: ToolContext): AgentToolDef[] {
     return [
       {
