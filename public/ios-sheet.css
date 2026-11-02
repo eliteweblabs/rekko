@@ -9,6 +9,8 @@
 :root {
   --ios-sheet-z: 6000;
   --ios-sheet-z-nested: 5900;
+  /** OTP / critical alerts — above client-setup (12000) and preloader (100000). */
+  --ios-sheet-z-urgent: 100010;
   --ios-sheet-z-drawer: 4800;
   --ios-sheet-z-drawer-pane: 4900;
 
@@ -62,6 +64,13 @@ html.ios-sheet-locked body {
 
 .ios-sheet-backdrop.open {
   display: flex;
+  pointer-events: auto;
+}
+
+.ios-sheet-backdrop.open > .ios-sheet {
+  pointer-events: auto;
+  position: relative;
+  z-index: 1;
 }
 
 /*

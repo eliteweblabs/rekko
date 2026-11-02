@@ -38,8 +38,7 @@
     bindKeyboardLayout();
   }
 
-  function unlockScroll() {
-    if (document.querySelector('.ios-sheet-backdrop.' + OPEN_CLASS)) return;
+  function clearBodyScrollLock() {
     document.documentElement.classList.remove(LOCK_CLASS);
     const body = document.body;
     body.style.position = '';
@@ -47,8 +46,35 @@
     body.style.left = '';
     body.style.right = '';
     body.style.width = '';
+  }
+
+  function unlockScroll() {
+    if (document.querySelector('.ios-sheet-backdrop.' + OPEN_CLASS)) return;
+    clearBodyScrollLock();
     window.scrollTo(0, lockedScrollY);
     releaseKeyboardLayout();
+  }
+
+  /** Last resort when a scrim/lock survives a sheet close (layering / PWA bugs). */
+  function forceRelease() {
+    document.querySelectorAll('.ios-sheet-backdrop.' + OPEN_CLASS).forEach((backdrop) => {
+      close(/** @type {HTMLElement} */ (backdrop));
+    });
+    const scrim = document.getElementById('create-drawer-scrim');
+    if (scrim instanceof HTMLElement) {
+      scrim.classList.remove('open');
+      scrim.hidden = true;
+      if (scrim.parentElement !== document.body) document.body.appendChild(scrim);
+    }
+    clearBodyScrollLock();
+    lockedScrollY = 0;
+    releaseKeyboardLayout();
+  }
+
+  /** Fixed sheets must be direct body children — nested hosts break hit-testing. */
+  function reparentToBodyTop(el) {
+    if (!(el instanceof HTMLElement) || !document.body) return;
+    document.body.appendChild(el);
   }
 
   function bindTouchMoveLock() {
@@ -194,6 +220,8 @@
   function open(target, opts) {
     const el = typeof target === 'string' ? document.getElementById(target) : target;
     if (!el) return;
+
+    reparentToBodyTop(el);
 
     if (opts?.onClose) closeHandlers.set(el.id, opts.onClose);
 
@@ -386,7 +414,7 @@
     if (backdrop.classList.contains(OPEN_CLASS)) lockScroll();
   }
 
-  document.addEventListener('click', (ev) => {
+  function onSheetPointerDismiss(ev) {
     const trigger = ev.target.closest('[data-ios-sheet-open]');
     if (trigger) {
       ev.preventDefault();
@@ -406,7 +434,9 @@
     if (backdrop && ev.target === backdrop && isDismissible(backdrop)) {
       close(backdrop.id);
     }
-  });
+  }
+
+  document.addEventListener('click', onSheetPointerDismiss, true);
 
   document.addEventListener('keydown', (ev) => {
     if (ev.key === 'Escape') closeAll();
@@ -424,5 +454,5 @@
     }
   }).observe(document.documentElement, { childList: true, subtree: true });
 
-  window.IosSheet = { open, close, closeAll };
+  window.IosSheet = { open, close, closeAll, forceRelease };
 })();

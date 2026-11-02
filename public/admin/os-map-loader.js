@@ -20684,9 +20684,37 @@ function hideOtpCopyOverlay() {
   if (legacy instanceof HTMLElement) legacy.hidden = true;
 }
 
+function dismissBlockingChromeForOtp() {
+  const scrim = document.getElementById('create-drawer-scrim');
+  if (scrim instanceof HTMLElement) {
+    scrim.classList.remove('open');
+    scrim.hidden = true;
+    try {
+      document.body.appendChild(scrim);
+    } catch {
+      /* ignore */
+    }
+  }
+  document.querySelectorAll('.ios-sheet-backdrop.open').forEach((el) => {
+    if (!(el instanceof HTMLElement)) return;
+    if (el.id === OTP_COPY_SHEET_ID) return;
+    if (el.dataset?.sheetDismiss === 'false') return;
+    window.IosSheet?.close(el.id);
+  });
+}
+
 function bindOtpCopySheetOnce() {
   if (otpCopySheetBound) return;
   otpCopySheetBound = true;
+  const backdrop = document.getElementById(OTP_COPY_SHEET_ID);
+  backdrop
+    ?.querySelectorAll('[data-ios-sheet-close], .ios-sheet-close')
+    .forEach((btn) => {
+      btn.addEventListener('click', (ev) => {
+        ev.preventDefault();
+        hideOtpCopyOverlay();
+      });
+    });
   document.getElementById('admin-otp-copy-btn')?.addEventListener('click', async () => {
     const backdrop = document.getElementById(OTP_COPY_SHEET_ID);
     const code = String(backdrop?.dataset?.code || '').trim();
@@ -20717,6 +20745,7 @@ function showOtpCopyOverlay(code) {
   if (codeEl) codeEl.textContent = text;
   if (status) status.textContent = 'Tap Copy code to put it on the clipboard.';
   if (btn) btn.textContent = 'Copy code';
+  dismissBlockingChromeForOtp();
   window.IosSheet.open(OTP_COPY_SHEET_ID);
 }
 

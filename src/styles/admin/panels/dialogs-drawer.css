@@ -367,7 +367,7 @@
 
 /* Verification-code copy — above admin chrome when opened from push */
 #admin-otp-copy-backdrop {
-  z-index: 100001;
+  z-index: var(--ios-sheet-z-urgent, 100010);
 }
 #admin-otp-copy-backdrop .ios-sheet {
   --ios-sheet-bg: var(--panel);
@@ -378,9 +378,6 @@
   --ios-sheet-close-bg: var(--surface-hover);
   --ios-sheet-close-hover: var(--surface-hover-strong);
   max-width: 420px;
-}
-#admin-otp-copy-backdrop .ios-sheet-header {
-  touch-action: none;
 }
 .admin-otp-copy-body {
   display: flex;
