@@ -287,6 +287,11 @@ const appHandler = async (
     );
   }
 
+  // Add-ons toggles (Postgres) must load before route gating — install config alone is not enough.
+  if (!isDemoMode()) {
+    await ensureFeatureOverridesLoaded();
+  }
+
   if (isFeatureBlockedPath(pathname)) {
     return featureBlockedResponse();
   }
@@ -364,10 +369,6 @@ const appHandler = async (
 
   // Auth gates for admin sub-pages live on each route (Clerk Astro v4 removed
   // createRouteMatcher). clerkMiddleware still hydrates locals.auth().
-
-  if (!isDemoMode()) {
-    await ensureFeatureOverridesLoaded();
-  }
 
   const response = await next();
   if (isServiceWorkerScript(pathname) || isAdminHotReloadAsset(pathname)) {
