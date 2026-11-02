@@ -7,6 +7,7 @@ import { requestOrigin, siteBaseUrl, siteOriginFallback } from './requestOrigin'
 import {
   BRANDING_ICON_SVG_PATH,
   BRANDING_LOGO_PATH,
+  BRANDING_LOGO_TEXT_PATH,
   BRANDING_LOGO_SVG_PATH,
   BRANDING_ICON_PATH,
   BRANDING_OG_PATH,
@@ -50,6 +51,7 @@ import {
 import { shareSafeText } from './shareSafeText';
 import { DEFAULT_SUPPORT_PHONE } from './defaultSupportPhone';
 import { normalizeHeaderLogoSize, type HeaderLogoSizeId } from './headerLogoSize';
+import { normalizeHeaderWordmark, type HeaderWordmarkId } from './headerWordmark';
 import { parsePageSeoOverrides, type PageSeoOverrides } from './pageSeo';
 import { parseSearchKeywordLines } from './searchKeywords';
 
@@ -189,10 +191,16 @@ export type CompanyConfig = {
   iconVersion: string;
   /** Inline SVG for header wordmark (admin paste; wins over the uploaded image). */
   logoSvg: string;
+  /** Text-only header wordmark — optional alternate to the full logo. */
+  logoTextSvg: string;
+  /** Which admin wordmark slot renders in the header. */
+  headerWordmark: HeaderWordmarkId;
   /** Inline SVG for homepage hero icon (admin paste; wins over the uploaded image). */
   iconSvg: string;
   /** True when an admin-uploaded raster (PNG/JPEG/WebP) is stored for the logo. */
   logoHasRaster: boolean;
+  /** True when an admin-uploaded raster is stored for the text-only wordmark. */
+  logoTextHasRaster: boolean;
   /** True when an admin-uploaded raster (PNG/JPEG/WebP) is stored for the icon. */
   iconHasRaster: boolean;
   /** True when an admin-uploaded default social-share (OG) image is stored. */
@@ -309,6 +317,24 @@ function pick(...values: (string | null | undefined)[]): string {
     if (t) return t;
   }
   return '';
+}
+
+function resolveLogoText(
+  stored: StoredCompanyConfig | null,
+): Pick<CompanyConfig, 'logoTextSvg' | 'logoTextHasRaster'> {
+  if (stored?.logoTextData && stored?.logoTextMediaType) {
+    return {
+      logoTextSvg: trim(stored.logoTextSvg),
+      logoTextHasRaster: true,
+    };
+  }
+  if (trim(stored?.logoTextSvg)) {
+    return {
+      logoTextSvg: trim(stored.logoTextSvg),
+      logoTextHasRaster: false,
+    };
+  }
+  return { logoTextSvg: '', logoTextHasRaster: false };
 }
 
 function resolveLogo(stored: StoredCompanyConfig | null): Pick<CompanyConfig, 'logoPath' | 'logoSource' | 'logoVersion'> {
@@ -599,6 +625,37 @@ export function companyBestWordmarkImageUrl(company: CompanyConfig): string {
   return resolveCompanyLogoShareUrl(company) || '';
 }
 
+export function hasCompanyLogoTextAsset(company: CompanyConfig): boolean {
+  return Boolean(trim(company.logoTextSvg) || company.logoTextHasRaster);
+}
+
+/** Resolved header wordmark slot — falls back to logo when text-only is unset. */
+export function effectiveHeaderWordmark(company: CompanyConfig): HeaderWordmarkId {
+  if (company.headerWordmark === 'logoText' && hasCompanyLogoTextAsset(company)) {
+    return 'logoText';
+  }
+  return 'logo';
+}
+
+/** Inline SVG for the public header wordmark. */
+export function companyHeaderWordmarkInlineSvg(company: CompanyConfig): string {
+  if (effectiveHeaderWordmark(company) === 'logoText') {
+    return companyUsableInlineSvg(company.logoTextSvg);
+  }
+  return companyUsableInlineSvg(company.logoSvg);
+}
+
+/** Raster URL for the public header wordmark. */
+export function companyHeaderWordmarkImageUrl(company: CompanyConfig): string {
+  if (effectiveHeaderWordmark(company) === 'logoText') {
+    if (trim(company.logoTextSvg) || company.logoTextHasRaster) {
+      return `${BRANDING_LOGO_TEXT_PATH}${brandingVersionQuery(company)}`;
+    }
+    return '';
+  }
+  return companyBestWordmarkImageUrl(company);
+}
+
 /** Admin-uploaded square icon image (not the built-in default mark). */
 export function hasCompanyIconImage(company: CompanyConfig): boolean {
   return company.iconSource === 'admin' && Boolean(trim(company.iconPath));
@@ -679,6 +736,7 @@ function resolvePortalOutreachNotice(stored: StoredCompanyConfig | null): string
 function resolveFromStored(stored: StoredCompanyConfig | null, request?: Request): CompanyConfig {
   const domain = resolveCompanyDomain(stored, request);
   const logo = resolveLogo(stored);
+  const logoText = resolveLogoText(stored);
   const icon = resolveIcon(stored);
 
   const name = pick(stored?.name, serverEnv('COMPANY_NAME'), SITE.name);
@@ -759,6 +817,7 @@ function resolveFromStored(stored: StoredCompanyConfig | null, request?: Request
     syncHoursToCalcom: stored?.syncHoursToCalcom === true,
     syncHoursToGbp: stored?.syncHoursToGbp === true,
     headerLogoSize: normalizeHeaderLogoSize(stored?.headerLogoSize),
+    headerWordmark: normalizeHeaderWordmark(stored?.headerWordmark),
     searchKeywords: parseSearchKeywordLines(stored?.searchKeywords),
     pageSeoOverrides: parsePageSeoOverrides(stored?.pageSeoOverrides),
     logoSvg: trim(stored?.logoSvg),
@@ -769,6 +828,7 @@ function resolveFromStored(stored: StoredCompanyConfig | null, request?: Request
     ogImageWidth: stored?.ogWidth && stored.ogWidth > 0 ? stored.ogWidth : 0,
     ogImageHeight: stored?.ogHeight && stored.ogHeight > 0 ? stored.ogHeight : 0,
     ...logo,
+    ...logoText,
     ...icon,
   };
   _cachedName = name;
@@ -879,6 +939,10 @@ export type CompanyConfigInput = {
   iconBackground?: string;
   /** Paste full <svg>…</svg> for animated header wordmark. */
   logoSvg?: string;
+  /** Paste full <svg>…</svg> for text-only header wordmark. */
+  logoTextSvg?: string;
+  /** Header wordmark slot: logo (default) or logoText. */
+  headerWordmark?: string;
   /** Paste full <svg>…</svg> for animated homepage hero icon. */
   iconSvg?: string;
   /** Structured weekly hours JSON from admin repeater. */
@@ -983,6 +1047,18 @@ export function normalizeCompanyInput(input: CompanyConfigInput): StoredCompanyC
       out.logoMediaType = null;
       out.logoPath = null;
     }
+  }
+  if (input.logoTextSvg !== undefined) {
+    const t = input.logoTextSvg.trim();
+    out.logoTextSvg = t ? sanitizeInlineSvg(t) : null;
+    if (out.logoTextSvg) {
+      out.logoTextData = null;
+      out.logoTextMediaType = null;
+    }
+  }
+  if (input.headerWordmark !== undefined) {
+    const t = (input.headerWordmark ?? '').trim();
+    out.headerWordmark = t ? normalizeHeaderWordmark(t) : null;
   }
   if (input.iconSvg !== undefined) {
     const t = input.iconSvg.trim();

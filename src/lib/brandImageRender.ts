@@ -107,6 +107,15 @@ export function collectLogoWordmarkSources(stored: StoredCompanyConfig | null): 
   return sources;
 }
 
+/** Text-only header wordmark — separate upload from the full logo. */
+export function collectLogoTextWordmarkSources(stored: StoredCompanyConfig | null): BrandMarkSource[] {
+  const sources: BrandMarkSource[] = [];
+  if (!stored) return sources;
+  pushRaster(sources, stored.logoTextData, stored.logoTextMediaType);
+  pushSvg(sources, stored.logoTextSvg);
+  return sources;
+}
+
 const LOGO_WORDMARK_MAX_HEIGHT = 640;
 
 async function rasterizeWordmark(source: BrandMarkSource, maxHeight: number): Promise<Buffer | null> {
@@ -139,6 +148,16 @@ export async function renderCompanyLogoWordmarkPng(
   stored: StoredCompanyConfig | null,
 ): Promise<Buffer | null> {
   for (const source of collectLogoWordmarkSources(stored)) {
+    const png = await rasterizeWordmark(source, LOGO_WORDMARK_MAX_HEIGHT);
+    if (png) return png;
+  }
+  return null;
+}
+
+export async function renderCompanyLogoTextWordmarkPng(
+  stored: StoredCompanyConfig | null,
+): Promise<Buffer | null> {
+  for (const source of collectLogoTextWordmarkSources(stored)) {
     const png = await rasterizeWordmark(source, LOGO_WORDMARK_MAX_HEIGHT);
     if (png) return png;
   }
@@ -535,7 +554,7 @@ function brandingNameTag(name: string): string {
 export function brandingEtag(
   stored: StoredCompanyConfig | null,
   size: number,
-  kind: 'icon' | 'og' | 'share-logo' | 'logo' | 'logo-alt' | 'logo-email' = 'icon',
+  kind: 'icon' | 'og' | 'share-logo' | 'logo' | 'logo-text' | 'logo-alt' | 'logo-email' = 'icon',
   opts?: { transparent?: boolean },
 ): string {
   const updated = stored?.updatedAt ?? '0';
@@ -544,6 +563,8 @@ export function brandingEtag(
     stored?.iconSvg?.trim() ? 'I' : '',
     stored?.logoData ? 'l' : '',
     stored?.logoSvg?.trim() ? 'L' : '',
+    stored?.logoTextData ? 't' : '',
+    stored?.logoTextSvg?.trim() ? 'T' : '',
     stored?.ogData ? 'o' : '',
     opts?.transparent ? 't' : '',
   ].join('');

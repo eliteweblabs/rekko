@@ -3,6 +3,9 @@ import { BRAND_SVG_MAX_CHARS, sanitizeInlineSvg } from './brandSvg';
 /** Wordmark PNG — rasterized from admin company config. */
 export const BRANDING_LOGO_PATH = '/api/branding/logo';
 
+/** Text-only wordmark PNG — optional alternate header slot (no icon mark). */
+export const BRANDING_LOGO_TEXT_PATH = '/api/branding/logo-text';
+
 /** Wordmark adapted for dark backgrounds — rasterized from admin company config. */
 export const BRANDING_LOGO_ALT_PATH = '/api/branding/logo.alt';
 

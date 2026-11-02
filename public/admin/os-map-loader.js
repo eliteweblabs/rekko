@@ -8357,7 +8357,51 @@ function svgPreviewDataUri(svg) {
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(trimmed)}`;
 }
 
-const COMPANY_SVG_FIELD_IDS = new Set(['company-logoSvg', 'company-iconSvg']);
+const COMPANY_SVG_FIELD_IDS = new Set(['company-logoSvg', 'company-logoTextSvg', 'company-iconSvg']);
+const COMPANY_BRAND_ROLES = ['logo', 'logoText', 'icon'];
+
+function companyBrandRoleMeta(role) {
+  if (role === 'logoText') {
+    return {
+      role: 'logoText',
+      prefix: 'company-logoText',
+      svgKey: 'logoTextSvg',
+      svgId: 'company-logoTextSvg',
+      svgName: 'logoTextSvg',
+      label: 'Logo text',
+      deletePath: '/api/admin/company/logo-text',
+      mediaTarget: 'company-logo-text',
+      headerChoice: 'logoText',
+      isIcon: false,
+    };
+  }
+  if (role === 'icon') {
+    return {
+      role: 'icon',
+      prefix: 'company-icon',
+      svgKey: 'iconSvg',
+      svgId: 'company-iconSvg',
+      svgName: 'iconSvg',
+      label: 'Icon',
+      deletePath: '/api/admin/company/icon',
+      mediaTarget: 'company-icon',
+      headerChoice: null,
+      isIcon: true,
+    };
+  }
+  return {
+    role: 'logo',
+    prefix: 'company-logo',
+    svgKey: 'logoSvg',
+    svgId: 'company-logoSvg',
+    svgName: 'logoSvg',
+    label: 'Logo',
+    deletePath: '/api/admin/company/logo',
+    mediaTarget: 'company-logo',
+    headerChoice: 'logo',
+    isIcon: false,
+  };
+}
 
 /** Keep in sync with src/lib/headerLogoSize.ts */
 const HEADER_LOGO_SIZE_OPTIONS = [
@@ -8446,6 +8490,26 @@ function hasUploadedCompanyLogoPng(company) {
   );
 }
 
+function hasUploadedCompanyLogoTextPng(company) {
+  if (company?.logoTextHasRaster === true) return true;
+  if (company?.logoTextHasRaster === false) return false;
+  return company?.logoTextHasRaster === true;
+}
+
+function companyLogoTextPreviewUrl(company) {
+  const svgUrl = svgPreviewDataUri(company?.logoTextSvg);
+  if (svgUrl) return svgUrl;
+  if (hasUploadedCompanyLogoTextPng(company)) {
+    const v = company.logoVersion ? `?v=${encodeURIComponent(company.logoVersion)}` : '';
+    return `/api/branding/logo-text${v}`;
+  }
+  return '';
+}
+
+function hasCustomCompanyLogoText(company) {
+  return hasCompanySvg(company, 'logoTextSvg') || hasUploadedCompanyLogoTextPng(company);
+}
+
 function hasUploadedCompanyIconPng(company) {
   if (company?.iconHasRaster === true) return true;
   if (company?.iconHasRaster === false) return false;
@@ -8520,9 +8584,10 @@ function companyOgPreviewUrl(company) {
 }
 
 function companyBrandAssetStorageMode(company, role) {
-  const svgKey = role === 'logo' ? 'logoSvg' : 'iconSvg';
-  if (hasCompanySvg(company, svgKey)) return 'svg';
+  const meta = companyBrandRoleMeta(role);
+  if (hasCompanySvg(company, meta.svgKey)) return 'svg';
   if (role === 'logo' && hasUploadedCompanyLogoPng(company)) return 'image';
+  if (role === 'logoText' && hasUploadedCompanyLogoTextPng(company)) return 'image';
   if (role === 'icon' && (hasUploadedCompanyIconPng(company) || hasLegacyCompanyIconPath(company))) {
     return 'image';
   }
@@ -8548,6 +8613,30 @@ function companyLogoThemePreviewSources(company, svgOverride) {
     darkInvert: false,
     hasMark: true,
   };
+}
+
+function companyLogoTextThemePreviewSources(company, svgOverride) {
+  const merged =
+    svgOverride !== undefined ? { ...company, logoTextSvg: svgOverride } : company;
+  const svg = svgPreviewDataUri(merged?.logoTextSvg);
+  if (svg) {
+    return { light: svg, dark: svg, darkInvert: true, hasMark: true };
+  }
+  const url = companyLogoTextPreviewUrl(merged);
+  if (!url) return { hasMark: false };
+  const v = merged?.logoVersion ? `?v=${encodeURIComponent(merged.logoVersion)}` : '';
+  return {
+    light: `/api/branding/logo-text${v}`,
+    dark: `/api/branding/logo-text${v}`,
+    darkInvert: true,
+    hasMark: true,
+  };
+}
+
+function brandAssetThemePreviewSources(role, company, opts = {}) {
+  if (role === 'logo') return companyLogoThemePreviewSources(company, opts.logoSvgOverride);
+  if (role === 'logoText') return companyLogoTextThemePreviewSources(company, opts.logoTextSvgOverride);
+  return companyIconThemePreviewSources(company, opts.iconSvgOverride);
 }
 
 function iconTileSurfaceIsDark(hex) {
@@ -8583,17 +8672,14 @@ function companyIconThemePreviewSources(company, svgOverride) {
 }
 
 function syncBrandAssetThemePreviews(root, role, company, opts = {}) {
-  const prefix = role === 'logo' ? 'company-logo' : 'company-icon';
+  const { prefix } = companyBrandRoleMeta(role);
   const light = root.querySelector(`#${prefix}-light-preview`);
   const dark = root.querySelector(`#${prefix}-dark-preview`);
   const wrap = root.querySelector(`#${prefix}-previews-wrap`);
   const removeBtn = root.querySelector(`#${prefix}-remove`);
   if (!(light instanceof HTMLImageElement) || !(dark instanceof HTMLImageElement)) return;
 
-  const sources =
-    role === 'logo'
-      ? companyLogoThemePreviewSources(company, opts.logoSvgOverride)
-      : companyIconThemePreviewSources(company, opts.iconSvgOverride);
+  const sources = brandAssetThemePreviewSources(role, company, opts);
 
   const paint = (img, src, invert) => {
     if (src) {
@@ -8614,9 +8700,10 @@ function syncBrandAssetThemePreviews(root, role, company, opts = {}) {
 }
 
 function applyBrandAssetSourceMode(root, role, mode) {
-  const svgTa = root.querySelector(`#company-${role}Svg`);
-  const imagePanel = root.querySelector(`#company-${role}-image-panel`);
-  const svgPanel = root.querySelector(`#company-${role}-svg-panel`);
+  const meta = companyBrandRoleMeta(role);
+  const svgTa = root.querySelector(`#${meta.svgId}`);
+  const imagePanel = root.querySelector(`#${meta.prefix}-image-panel`);
+  const svgPanel = root.querySelector(`#${meta.prefix}-svg-panel`);
   root.querySelectorAll(`.prof-brand-source-tab[data-brand-role="${role}"]`).forEach((btn) => {
     if (btn instanceof HTMLButtonElement) {
       btn.setAttribute('aria-selected', btn.dataset.brandMode === mode ? 'true' : 'false');
@@ -8628,8 +8715,9 @@ function applyBrandAssetSourceMode(root, role, mode) {
 }
 
 function openCompanyBrandMediaPicker(root, role, ctx) {
-  const target = role === 'logo' ? 'company-logo' : 'company-icon';
-  const title = role === 'logo' ? 'Logo media' : 'Icon media';
+  const meta = companyBrandRoleMeta(role);
+  const target = meta.mediaTarget;
+  const title = `${meta.label} media`;
   const { companyAlert, onCompany, refreshPreview } = ctx;
   void openMediaPicker({
     title,
@@ -8648,15 +8736,16 @@ function openCompanyBrandMediaPicker(root, role, ctx) {
         refreshPreview?.(json.company);
         onCompany?.(json.company);
       }
-      showProfileAlert(companyAlert, `${role === 'logo' ? 'Logo' : 'Icon'} updated.`, 'success');
+      showProfileAlert(companyAlert, `${meta.label} updated.`, 'success');
     },
   });
 }
 
 function bindCompanyBrandAssetControls(root, getCompany, ctx = {}) {
-  for (const role of ['logo', 'icon']) {
-    const svgTa = root.querySelector(`#company-${role}Svg`);
-    applyBrandAssetSourceMode(root, role, companyBrandAssetStorageMode(getCompany()));
+  for (const role of COMPANY_BRAND_ROLES) {
+    const meta = companyBrandRoleMeta(role);
+    const svgTa = root.querySelector(`#${meta.svgId}`);
+    applyBrandAssetSourceMode(root, role, companyBrandAssetStorageMode(getCompany(), role));
 
     root.querySelectorAll(`.prof-brand-source-tab[data-brand-role="${role}"]`).forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -8667,7 +8756,7 @@ function bindCompanyBrandAssetControls(root, getCompany, ctx = {}) {
         );
         const wasMediaSelected = mediaTab?.getAttribute('aria-selected') === 'true';
         const previewsEmpty = root
-          .querySelector(`#company-${role}-previews-wrap`)
+          .querySelector(`#${meta.prefix}-previews-wrap`)
           ?.classList.contains('is-empty');
         applyBrandAssetSourceMode(root, role, mode);
         if (mode === 'svg' && svgTa instanceof HTMLTextAreaElement) svgTa.focus();
@@ -8675,7 +8764,12 @@ function bindCompanyBrandAssetControls(root, getCompany, ctx = {}) {
           openCompanyBrandMediaPicker(root, role, {
             companyAlert: ctx.companyAlert,
             onCompany: ctx.onCompany,
-            refreshPreview: role === 'logo' ? ctx.refreshLogoPreview : ctx.refreshIconPreview,
+            refreshPreview:
+              role === 'logo'
+                ? ctx.refreshLogoPreview
+                : role === 'logoText'
+                  ? ctx.refreshLogoTextPreview
+                  : ctx.refreshIconPreview,
           });
         }
       });
@@ -8683,29 +8777,60 @@ function bindCompanyBrandAssetControls(root, getCompany, ctx = {}) {
 
     svgTa?.addEventListener('input', () => {
       const company = getCompany();
-      syncBrandAssetThemePreviews(
-        root,
-        role,
-        company,
+      const previewOpts =
         role === 'logo'
           ? { logoSvgOverride: svgTa.value }
-          : { iconSvgOverride: svgTa.value },
-      );
+          : role === 'logoText'
+            ? { logoTextSvgOverride: svgTa.value }
+            : { iconSvgOverride: svgTa.value };
+      syncBrandAssetThemePreviews(root, role, company, previewOpts);
     });
   }
 }
 
 function refreshCompanyBrandAssetModes(root, company) {
-  for (const role of ['logo', 'icon']) {
-    applyBrandAssetSourceMode(root, role, companyBrandAssetStorageMode(company));
+  for (const role of COMPANY_BRAND_ROLES) {
+    applyBrandAssetSourceMode(root, role, companyBrandAssetStorageMode(company, role));
     syncBrandAssetThemePreviews(root, role, company);
   }
+}
+
+function syncHeaderWordmarkToggleUi(root, company) {
+  const choice = company?.headerWordmark === 'logoText' ? 'logoText' : 'logo';
+  root.querySelectorAll('[data-header-wordmark]').forEach((btn) => {
+    if (!(btn instanceof HTMLButtonElement)) return;
+    const on = btn.dataset.headerWordmark === choice;
+    setToggleSwitch(btn, on);
+  });
+}
+
+function bindCompanyHeaderWordmarkToggles(root, getCompany, onChange) {
+  const hidden = root.querySelector('#company-headerWordmark');
+  if (!(hidden instanceof HTMLInputElement)) return;
+
+  const applyChoice = (choice, { dispatch = false } = {}) => {
+    const next = choice === 'logoText' ? 'logoText' : 'logo';
+    hidden.value = next;
+    syncHeaderWordmarkToggleUi(root, { headerWordmark: next });
+    if (dispatch) hidden.dispatchEvent(new Event('change', { bubbles: true }));
+    onChange?.(next);
+  };
+
+  applyChoice(getCompany()?.headerWordmark || 'logo');
+
+  root.querySelectorAll('[data-header-wordmark]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (!(btn instanceof HTMLButtonElement)) return;
+      if (btn.getAttribute('aria-checked') === 'true') return;
+      applyChoice(btn.dataset.headerWordmark || 'logo', { dispatch: true });
+    });
+  });
 }
 
 function profBrandSourceModeTabs(role, activeMode) {
   const imgSel = activeMode === 'image' ? 'true' : 'false';
   const svgSel = activeMode === 'svg' ? 'true' : 'false';
-  const label = role === 'logo' ? 'Logo' : 'Icon';
+  const label = companyBrandRoleMeta(role).label;
   return (
     `<div class="prof-brand-source-tabs" role="tablist" aria-label="${label} — Media or SVG code">` +
       `<button type="button" class="prof-brand-source-tab" role="tab" data-brand-role="${role}" data-brand-mode="image" aria-selected="${imgSel}">Media</button>` +
@@ -8715,8 +8840,9 @@ function profBrandSourceModeTabs(role, activeMode) {
 }
 
 function renderProfBrandThemePreviews(role, company) {
-  const prefix = role === 'logo' ? 'company-logo' : 'company-icon';
-  const isIcon = role === 'icon';
+  const meta = companyBrandRoleMeta(role);
+  const prefix = meta.prefix;
+  const isIcon = meta.isIcon;
   const iconBg = escHtml(company?.iconBackground || '#09090b');
   const iconCanvasClass = isIcon ? ' prof-brand-theme-canvas--icon' : '';
   const markClass = isIcon ? ' prof-icon-preview' : ' prof-logo-preview';
@@ -8740,23 +8866,37 @@ function renderProfBrandThemePreviews(role, company) {
   );
 }
 
+function renderCompanyHeaderWordmarkToggle(role, company) {
+  const meta = companyBrandRoleMeta(role);
+  if (!meta.headerChoice) return '';
+  const active =
+    (company?.headerWordmark || 'logo') === meta.headerChoice ||
+    (meta.headerChoice === 'logo' && !company?.headerWordmark);
+  return (
+    `<div class="prof-header-wordmark-toggle">` +
+      `<button type="button" class="prof-toggle-switch" role="switch" data-header-wordmark="${meta.headerChoice}" aria-checked="${active ? 'true' : 'false'}" aria-label="Use ${meta.label} in header">Use in header</button>` +
+    `</div>`
+  );
+}
+
 function renderCompanyBrandAssetField(role, company, hints) {
-  const mode = companyBrandAssetStorageMode(company || {});
-  const svgId = role === 'logo' ? 'company-logoSvg' : 'company-iconSvg';
-  const svgName = role === 'logo' ? 'logoSvg' : 'iconSvg';
-  const svgValue = role === 'logo' ? company?.logoSvg : company?.iconSvg;
-  const label = role === 'logo' ? 'Logo' : 'Icon';
+  const meta = companyBrandRoleMeta(role);
+  const mode = companyBrandAssetStorageMode(company || {}, role);
+  const svgValue = company?.[meta.svgKey];
   const imagePanelHidden = mode !== 'image';
   const svgPanelHidden = mode !== 'svg';
   const svgDisabled = mode !== 'svg';
   return (
     `<div class="prof-branding-upload-item">` +
-      `<span class="prof-branding-upload-label">${label}</span>` +
+      `<div class="prof-branding-upload-label-row">` +
+        `<span class="prof-branding-upload-label">${meta.label}</span>` +
+        renderCompanyHeaderWordmarkToggle(role, company) +
+      `</div>` +
       renderProfBrandThemePreviews(role, company) +
       profBrandSourceModeTabs(role, mode) +
-      `<div id="company-${role}-image-panel" class="prof-brand-source-panel"${imagePanelHidden ? ' hidden' : ''}></div>` +
-      `<div id="company-${role}-svg-panel" class="prof-brand-source-panel prof-field"${svgPanelHidden ? ' hidden' : ''}>` +
-        `<textarea id="${svgId}" name="${svgName}" class="prof-svg-input" rows="8" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="${label} SVG markup"${svgDisabled ? ' disabled' : ''}>${escHtml(svgValue || '')}</textarea>` +
+      `<div id="${meta.prefix}-image-panel" class="prof-brand-source-panel"${imagePanelHidden ? ' hidden' : ''}></div>` +
+      `<div id="${meta.prefix}-svg-panel" class="prof-brand-source-panel prof-field"${svgPanelHidden ? ' hidden' : ''}>` +
+        `<textarea id="${meta.svgId}" name="${meta.svgName}" class="prof-svg-input" rows="8" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="${meta.label} SVG markup"${svgDisabled ? ' disabled' : ''}>${escHtml(svgValue || '')}</textarea>` +
         `<span class="prof-hint">${hints.svgHint}</span>` +
       `</div>` +
       hints.extraHints +
@@ -8772,6 +8912,7 @@ function renderCompanyBrandAssetField(role, company, hints) {
 function syncCompanySvgFields(root, company) {
   const fields = [
     ['company-logoSvg', company?.logoSvg],
+    ['company-logoTextSvg', company?.logoTextSvg],
     ['company-iconSvg', company?.iconSvg],
   ];
   for (const [id, svg] of fields) {
@@ -8780,11 +8921,18 @@ function syncCompanySvgFields(root, company) {
     if (ta instanceof HTMLTextAreaElement && !editing) ta.value = svg || '';
   }
   const logoTa = root.querySelector('#company-logoSvg');
+  const logoTextTa = root.querySelector('#company-logoTextSvg');
   const iconTa = root.querySelector('#company-iconSvg');
   syncBrandAssetThemePreviews(root, 'logo', company, {
     logoSvgOverride:
       logoTa instanceof HTMLTextAreaElement && document.activeElement === logoTa
         ? logoTa.value
+        : undefined,
+  });
+  syncBrandAssetThemePreviews(root, 'logoText', company, {
+    logoTextSvgOverride:
+      logoTextTa instanceof HTMLTextAreaElement && document.activeElement === logoTextTa
+        ? logoTextTa.value
         : undefined,
   });
   syncBrandAssetThemePreviews(root, 'icon', company, {
@@ -8793,6 +8941,7 @@ function syncCompanySvgFields(root, company) {
         ? iconTa.value
         : undefined,
   });
+  syncHeaderWordmarkToggleUi(root, company);
 }
 
 function usesLogoAsIconFallback(company) {
@@ -8807,7 +8956,7 @@ function bindCompanyLogoUpload(root, companyAlert, opts = {}) {
   const refreshPreview = (company) => {
     lastCompany = company;
     syncBrandAssetThemePreviews(root, 'logo', company);
-    applyBrandAssetSourceMode(root, 'logo', companyBrandAssetStorageMode(company));
+    applyBrandAssetSourceMode(root, 'logo', companyBrandAssetStorageMode(company, 'logo'));
     syncCompanySvgFields(root, company);
   };
 
@@ -8836,6 +8985,41 @@ function bindCompanyLogoUpload(root, companyAlert, opts = {}) {
   return { refreshPreview };
 }
 
+function bindCompanyLogoTextUpload(root, companyAlert, opts = {}) {
+  const removeBtn = root.querySelector('#company-logoText-remove');
+  const onCompany = typeof opts.onCompany === 'function' ? opts.onCompany : null;
+
+  const refreshPreview = (company) => {
+    syncBrandAssetThemePreviews(root, 'logoText', company);
+    applyBrandAssetSourceMode(root, 'logoText', companyBrandAssetStorageMode(company, 'logoText'));
+    syncCompanySvgFields(root, company);
+  };
+
+  removeBtn?.addEventListener('click', async () => {
+    if (!(removeBtn instanceof HTMLButtonElement)) return;
+    removeBtn.disabled = true;
+    try {
+      const res = await fetch('/api/admin/company/logo-text', { method: 'DELETE' });
+      const json = await res.json();
+      if (res.ok && json.company) {
+        refreshPreview(json.company);
+        onCompany?.(json.company);
+        showProfileAlert(companyAlert, 'Logo text removed.', 'success');
+      } else {
+        showProfileAlert(companyAlert, json.error || 'Could not remove logo text.', 'error');
+      }
+    } catch {
+      showProfileAlert(companyAlert, 'Network error — please try again.', 'error');
+    } finally {
+      removeBtn.disabled = false;
+    }
+  });
+
+  if (opts.company) refreshPreview(opts.company);
+
+  return { refreshPreview };
+}
+
 function bindCompanyIconUpload(root, companyAlert, initialCompany, opts = {}) {
   const removeBtn = root.querySelector('#company-icon-remove');
   const fallbackHint = root.querySelector('#company-icon-fallback-hint');
@@ -8845,7 +9029,7 @@ function bindCompanyIconUpload(root, companyAlert, initialCompany, opts = {}) {
     const avatarUrl = companyStaffAvatarPreviewUrl(company);
 
     syncBrandAssetThemePreviews(root, 'icon', company);
-    applyBrandAssetSourceMode(root, 'icon', companyBrandAssetStorageMode(company));
+    applyBrandAssetSourceMode(root, 'icon', companyBrandAssetStorageMode(company, 'icon'));
     if (fallbackHint instanceof HTMLElement) {
       fallbackHint.hidden = !usesLogoAsIconFallback(company);
     }
@@ -9066,12 +9250,14 @@ function bindCompanyForm(root, company, fontCatalog, emailFontCatalog) {
   let brandCompany = company || {};
   let resyncCompanyForm = () => {};
   let refreshLogoPreview = () => {};
+  let refreshLogoTextPreview = () => {};
   let refreshIconPreview = () => {};
   let refreshOgPreview = () => {};
   const onBrandCompany = (next) => {
     brandCompany = next || brandCompany;
     syncCompanySvgFields(root, next);
     refreshLogoPreview(next);
+    refreshLogoTextPreview(next);
     refreshIconPreview(next);
     refreshOgPreview(next);
     refreshCompanyBrandAssetModes(root, next);
@@ -9082,6 +9268,11 @@ function bindCompanyForm(root, company, fontCatalog, emailFontCatalog) {
     onCompany: onBrandCompany,
   });
   refreshLogoPreview = logoBranding.refreshPreview;
+  const logoTextBranding = bindCompanyLogoTextUpload(root, companyAlert, {
+    company,
+    onCompany: onBrandCompany,
+  });
+  refreshLogoTextPreview = logoTextBranding.refreshPreview;
   const iconBranding = bindCompanyIconUpload(root, companyAlert, company, {
     onCompany: onBrandCompany,
   });
@@ -9094,8 +9285,10 @@ function bindCompanyForm(root, company, fontCatalog, emailFontCatalog) {
     companyAlert,
     onCompany: onBrandCompany,
     refreshLogoPreview: (c) => logoBranding.refreshPreview(c),
+    refreshLogoTextPreview: (c) => logoTextBranding.refreshPreview(c),
     refreshIconPreview: (c) => iconBranding.refreshPreview(c),
   });
+  bindCompanyHeaderWordmarkToggles(root, () => brandCompany);
   refreshCompanyBrandAssetModes(root, brandCompany);
 
   const addressInput = root.querySelector('#company-address');
@@ -9228,6 +9421,7 @@ function bindCompanyForm(root, company, fontCatalog, emailFontCatalog) {
           brandCompany = json.company;
           syncCompanySvgFields(root, json.company);
           logoBranding.refreshPreview(json.company);
+          logoTextBranding.refreshPreview(json.company);
           iconBranding.refreshPreview(json.company);
           refreshCompanyBrandAssetModes(root, json.company);
           refreshGoogleListingPreview(root);
@@ -10360,12 +10554,19 @@ function renderCompanyPanel(company, fontCatalog, emailFontCatalog) {
           ) +
           profSection(
             'Logo &amp; Icon',
-            'Wordmark for the header and square mark for the homepage hero. Use Media or SVG code — not both. Previews match light and dark site themes.',
+            'Full wordmark, optional text-only wordmark for tight headers, and square mark for the homepage hero. Use Media or SVG code — not both. Toggle which wordmark appears in the header.',
+            `<input type="hidden" id="company-headerWordmark" name="headerWordmark" value="${escHtml(c.headerWordmark === 'logoText' ? 'logoText' : 'logo')}" />` +
             `<div class="prof-branding-uploads">` +
               renderCompanyBrandAssetField('logo', c, {
                 svgHint:
                   'Paste full <code>&lt;svg&gt;…&lt;/svg&gt;</code> markup for the header wordmark. An SVG from Media saves here too.',
                 extraHints: '',
+              }) +
+              renderCompanyBrandAssetField('logoText', c, {
+                svgHint:
+                  'Text-only wordmark — no icon mark. Use when the full logo is too wide for the header bar.',
+                extraHints:
+                  `<span class="prof-hint prof-hint--block">OG images, email headers, and share cards still use the main Logo above.</span>`,
               }) +
               renderCompanyBrandAssetField('icon', c, {
                 svgHint:

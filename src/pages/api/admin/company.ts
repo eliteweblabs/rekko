@@ -8,6 +8,7 @@ import {
 import { sanitizeInlineSvg } from '../../../lib/brandSvg';
 import { normalizeBrandColorHex } from '../../../lib/companyBrandColors';
 import { isHeaderLogoSizeId } from '../../../lib/headerLogoSize';
+import { isHeaderWordmarkId } from '../../../lib/headerWordmark';
 import { emailSafeFontCatalogForAdmin } from '../../../lib/emailSafeFonts';
 import { brandFontCatalogForAdminAsync, mergeFontGoogleSpecs } from '../../../lib/googleFontsCatalog';
 import { getStoredCompanyConfig, setStoredCompanyConfig } from '../../../lib/companyConfigStore';
@@ -52,11 +53,24 @@ export async function POST(context: APIContext): Promise<Response> {
       return jsonResponse({ error: 'Logo SVG must be valid <svg>…</svg> markup (max 200 KB).' }, 400);
     }
   }
+  if (body.logoTextSvg !== undefined) {
+    const t = (body.logoTextSvg ?? '').trim();
+    if (t && !sanitizeInlineSvg(t)) {
+      return jsonResponse({ error: 'Logo text SVG must be valid <svg>…</svg> markup (max 200 KB).' }, 400);
+    }
+  }
   if (body.iconSvg !== undefined) {
     const t = (body.iconSvg ?? '').trim();
     if (t && !sanitizeInlineSvg(t)) {
       return jsonResponse({ error: 'Icon SVG must be valid <svg>…</svg> markup (max 200 KB).' }, 400);
     }
+  }
+  if (
+    body.headerWordmark !== undefined &&
+    body.headerWordmark.trim() &&
+    !isHeaderWordmarkId(body.headerWordmark)
+  ) {
+    return jsonResponse({ error: 'Header wordmark must be logo or logoText.' }, 400);
   }
   if (body.brandPrimary !== undefined && body.brandPrimary.trim() && !normalizeBrandColorHex(body.brandPrimary)) {
     return jsonResponse({ error: 'Primary color must be a valid hex value (e.g. #rrggbb).' }, 400);

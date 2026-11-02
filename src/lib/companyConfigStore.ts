@@ -51,8 +51,15 @@ export type StoredCompanyConfig = {
   iconMediaType?: string | null;
   /** Owner-pasted inline SVG for header wordmark. */
   logoSvg?: string | null;
+  /** Raster or SVG for text-only header wordmark (no icon mark). */
+  logoTextData?: string | null;
+  logoTextMediaType?: string | null;
+  /** Owner-pasted inline SVG for text-only header wordmark. */
+  logoTextSvg?: string | null;
   /** Owner-pasted inline SVG for homepage hero icon. */
   iconSvg?: string | null;
+  /** Which wordmark slot renders in the header: logo | logoText. */
+  headerWordmark?: string | null;
   /** Admin-uploaded default social-share (OG) image. */
   ogData?: string | null;
   ogMediaType?: string | null;
@@ -189,6 +196,10 @@ ALTER TABLE company_config ADD COLUMN IF NOT EXISTS search_keywords JSONB NOT NU
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS page_seo_overrides JSONB NOT NULL DEFAULT '{}'::jsonb;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS og_width INT;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS og_height INT;
+ALTER TABLE company_config ADD COLUMN IF NOT EXISTS logo_text_data TEXT;
+ALTER TABLE company_config ADD COLUMN IF NOT EXISTS logo_text_media_type TEXT;
+ALTER TABLE company_config ADD COLUMN IF NOT EXISTS logo_text_svg TEXT;
+ALTER TABLE company_config ADD COLUMN IF NOT EXISTS header_wordmark TEXT;
 `;
 
 let _schemaReady: Promise<void> | null = null;
@@ -308,7 +319,12 @@ function normalizeStored(raw: unknown): StoredCompanyConfig {
     iconData: typeof o.iconData === 'string' && o.iconData ? o.iconData : null,
     iconMediaType: typeof o.iconMediaType === 'string' && o.iconMediaType ? o.iconMediaType.trim() : null,
     logoSvg: typeof o.logoSvg === 'string' && o.logoSvg.trim() ? o.logoSvg : null,
+    logoTextData: typeof o.logoTextData === 'string' && o.logoTextData ? o.logoTextData : null,
+    logoTextMediaType:
+      typeof o.logoTextMediaType === 'string' && o.logoTextMediaType ? o.logoTextMediaType.trim() : null,
+    logoTextSvg: typeof o.logoTextSvg === 'string' && o.logoTextSvg.trim() ? o.logoTextSvg : null,
     iconSvg: typeof o.iconSvg === 'string' && o.iconSvg.trim() ? o.iconSvg : null,
+    headerWordmark: str('headerWordmark') || str('header_wordmark') || null,
     ogData: typeof o.ogData === 'string' && o.ogData ? o.ogData : null,
     ogMediaType: typeof o.ogMediaType === 'string' && o.ogMediaType ? o.ogMediaType.trim() : null,
     ogWidth:
@@ -488,6 +504,7 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
   }>(
     `SELECT name, legal_name, description, domain, support_email, support_phone, from_email,
             logo_path, logo_data, logo_media_type, logo_svg,
+            logo_text_data, logo_text_media_type, logo_text_svg, header_wordmark,
             icon_path, icon_data, icon_media_type, icon_svg,
             vapi_assistant_id, vapi_first_message, vapi_system_prompt,
             social_twitter, social_instagram, social_linkedin, social_facebook,
@@ -518,6 +535,10 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
     iconData: row.icon_data,
     iconMediaType: row.icon_media_type,
     logoSvg: row.logo_svg,
+    logoTextData: row.logo_text_data,
+    logoTextMediaType: row.logo_text_media_type,
+    logoTextSvg: row.logo_text_svg,
+    headerWordmark: row.header_wordmark,
     iconSvg: row.icon_svg,
     vapiAssistantId: row.vapi_assistant_id,
     vapiFirstMessage: row.vapi_first_message,
@@ -598,57 +619,61 @@ async function writePgConfig(config: StoredCompanyConfig, retried = false): Prom
        icon_data = $12,
        icon_media_type = $13,
        logo_svg = $14,
-       icon_svg = $15,
-       vapi_assistant_id = $16,
-       vapi_first_message = $17,
-       vapi_system_prompt = $18,
-       social_twitter = $19,
-       social_instagram = $20,
-       social_linkedin = $21,
-       social_facebook = $22,
-       social_youtube = $23,
-       social_tiktok = $24,
-       social_bluesky = $25,
-       social_threads = $26,
-       social_pinterest = $27,
-       social_snapchat = $28,
-       social_discord = $29,
-       social_reddit = $30,
-       social_github = $31,
-       social_twitch = $32,
-       social_telegram = $33,
-       social_whatsapp = $34,
-       social_substack = $35,
-       social_yelp = $36,
-       social_google_business = $37,
-       social_hidden_platforms = $38,
-       address = $39,
-       geo_lat = $40,
-       geo_lng = $41,
-       geo_place_id = $42,
-       geo_geocoded_at = $43,
-       font_display = $44,
-       font_body = $45,
-       font_primary = $46,
-       font_secondary = $47,
-       font_content = $48,
-       font_google_specs = $49,
-       brand_primary = $50,
-       brand_secondary = $51,
-       icon_background = $52,
-       portal_outreach_notice = $53,
-       og_data = $54,
-       og_media_type = $55,
-       og_width = $56,
-       og_height = $57,
-       email_font = $58,
-       business_hours = $59,
-       sync_hours_to_calcom = $60,
-       sync_hours_to_gbp = $61,
-       support_phone_mobile = $62,
-       header_logo_size = $63,
-       search_keywords = $64::jsonb,
-       page_seo_overrides = $65::jsonb,
+       logo_text_data = $15,
+       logo_text_media_type = $16,
+       logo_text_svg = $17,
+       header_wordmark = $18,
+       icon_svg = $19,
+       vapi_assistant_id = $20,
+       vapi_first_message = $21,
+       vapi_system_prompt = $22,
+       social_twitter = $23,
+       social_instagram = $24,
+       social_linkedin = $25,
+       social_facebook = $26,
+       social_youtube = $27,
+       social_tiktok = $28,
+       social_bluesky = $29,
+       social_threads = $30,
+       social_pinterest = $31,
+       social_snapchat = $32,
+       social_discord = $33,
+       social_reddit = $34,
+       social_github = $35,
+       social_twitch = $36,
+       social_telegram = $37,
+       social_whatsapp = $38,
+       social_substack = $39,
+       social_yelp = $40,
+       social_google_business = $41,
+       social_hidden_platforms = $42,
+       address = $43,
+       geo_lat = $44,
+       geo_lng = $45,
+       geo_place_id = $46,
+       geo_geocoded_at = $47,
+       font_display = $48,
+       font_body = $49,
+       font_primary = $50,
+       font_secondary = $51,
+       font_content = $52,
+       font_google_specs = $53,
+       brand_primary = $54,
+       brand_secondary = $55,
+       icon_background = $56,
+       portal_outreach_notice = $57,
+       og_data = $58,
+       og_media_type = $59,
+       og_width = $60,
+       og_height = $61,
+       email_font = $62,
+       business_hours = $63,
+       sync_hours_to_calcom = $64,
+       sync_hours_to_gbp = $65,
+       support_phone_mobile = $66,
+       header_logo_size = $67,
+       search_keywords = $68::jsonb,
+       page_seo_overrides = $69::jsonb,
        updated_at = now()
      WHERE id = 1`,
     [
@@ -666,6 +691,10 @@ async function writePgConfig(config: StoredCompanyConfig, retried = false): Prom
       config.iconData ?? null,
       config.iconMediaType ?? null,
       config.logoSvg ?? null,
+      config.logoTextData ?? null,
+      config.logoTextMediaType ?? null,
+      config.logoTextSvg ?? null,
+      config.headerWordmark ?? null,
       config.iconSvg ?? null,
       config.vapiAssistantId ?? null,
       config.vapiFirstMessage ?? null,
@@ -813,6 +842,22 @@ export async function clearStoredCompanyLogo(): Promise<boolean> {
     logoMediaType: null,
     logoPath: null,
     logoSvg: null,
+  });
+}
+
+export async function setStoredCompanyLogoText(logo: StoredCompanyLogo): Promise<boolean> {
+  return setStoredCompanyConfig({
+    logoTextData: logo.dataBase64,
+    logoTextMediaType: logo.mediaType,
+    logoTextSvg: null,
+  });
+}
+
+export async function clearStoredCompanyLogoText(): Promise<boolean> {
+  return setStoredCompanyConfig({
+    logoTextData: null,
+    logoTextMediaType: null,
+    logoTextSvg: null,
   });
 }
 

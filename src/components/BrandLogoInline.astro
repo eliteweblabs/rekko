@@ -1,6 +1,9 @@
 ---
 import type { CompanyConfig } from '../lib/companyConfig';
-import { companyBestWordmarkImageUrl, companyUsableInlineSvg } from '../lib/companyConfig';
+import {
+  companyHeaderWordmarkImageUrl,
+  companyHeaderWordmarkInlineSvg,
+} from '../lib/companyConfig';
 import InlineBrandSvg from './InlineBrandSvg.astro';
 
 export interface Props {
@@ -9,8 +12,8 @@ export interface Props {
 }
 
 const { company, idPrefix = 'header-logo' } = Astro.props;
-const inlineLogoSvg = companyUsableInlineSvg(company.logoSvg);
-const logoImageUrl = companyBestWordmarkImageUrl(company);
+const inlineLogoSvg = companyHeaderWordmarkInlineSvg(company);
+const logoImageUrl = companyHeaderWordmarkImageUrl(company);
 const displayName = company.name?.trim() || 'Business OS';
 ---
 

@@ -11,6 +11,7 @@ import {
   setStoredCompanyConfig,
   setStoredCompanyIcon,
   setStoredCompanyLogo,
+  setStoredCompanyLogoText,
   setStoredCompanyOg,
 } from '../../../../../lib/companyConfigStore';
 import {
@@ -26,13 +27,20 @@ import { jsonResponse } from '../../../../../lib/apiResponse';
 
 export const prerender = false;
 
-type ApplyTarget = 'company-logo' | 'company-icon' | 'company-og' | 'client-logo' | 'client-icon';
+type ApplyTarget =
+  | 'company-logo'
+  | 'company-logo-text'
+  | 'company-icon'
+  | 'company-og'
+  | 'client-logo'
+  | 'client-icon';
 
 
 function parseTarget(raw: unknown): ApplyTarget | null {
   const t = typeof raw === 'string' ? raw.trim() : '';
   if (
     t === 'company-logo' ||
+    t === 'company-logo-text' ||
     t === 'company-icon' ||
     t === 'company-og' ||
     t === 'client-logo' ||
@@ -82,6 +90,23 @@ export async function POST(context: APIContext): Promise<Response> {
             mediaType: blob.mediaType,
           });
     if (!ok) return jsonResponse({ ok: false, error: 'Failed to apply logo' }, 500);
+    const company = await getCompanyConfig(context.request);
+    return jsonResponse({ ok: true, company });
+  }
+
+  if (target === 'company-logo-text') {
+    const ok =
+      blob.kind === 'svg'
+        ? await setStoredCompanyConfig({
+            logoTextSvg: blob.svg,
+            logoTextData: null,
+            logoTextMediaType: null,
+          })
+        : await setStoredCompanyLogoText({
+            dataBase64: blob.dataBase64,
+            mediaType: blob.mediaType,
+          });
+    if (!ok) return jsonResponse({ ok: false, error: 'Failed to apply logo text' }, 500);
     const company = await getCompanyConfig(context.request);
     return jsonResponse({ ok: true, company });
   }

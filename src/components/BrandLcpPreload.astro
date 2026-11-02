@@ -1,14 +1,17 @@
 ---
 import type { CompanyConfig } from '../lib/companyConfig';
-import { companyBestWordmarkImageUrl, companyUsableInlineSvg } from '../lib/companyConfig';
+import {
+  companyHeaderWordmarkImageUrl,
+  companyHeaderWordmarkInlineSvg,
+} from '../lib/companyConfig';
 
 interface Props {
   company: CompanyConfig;
 }
 
 const { company } = Astro.props;
-const inlineLogoSvg = companyUsableInlineSvg(company.logoSvg);
-const wordmarkUrl = inlineLogoSvg ? '' : companyBestWordmarkImageUrl(company);
+const inlineLogoSvg = companyHeaderWordmarkInlineSvg(company);
+const wordmarkUrl = inlineLogoSvg ? '' : companyHeaderWordmarkImageUrl(company);
 ---
 
 {

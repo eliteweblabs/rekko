@@ -645,6 +645,24 @@
   font-weight: 600;
   font-size: 0.88rem;
 }
+.prof-branding-upload-label-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 0.35rem;
+}
+.prof-branding-upload-label-row > .prof-branding-upload-label {
+  margin-bottom: 0;
+}
+.prof-header-wordmark-toggle {
+  flex-shrink: 0;
+}
+.prof-header-wordmark-toggle .prof-toggle-switch {
+  font-size: 0.78rem;
+  font-weight: 600;
+}
 .prof-branding-upload-item > .prof-hint {
   margin-top: 0.45rem;
 }
