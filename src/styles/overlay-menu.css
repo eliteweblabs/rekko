@@ -225,6 +225,50 @@ html[data-theme="dark"] .overlay-menu-link--primary {
   gap: 12px;
 }
 
+.overlay-menu-footer-row--account .overlay-menu-footer-actions {
+  width: auto;
+  flex: 1 1 auto;
+}
+
+.overlay-menu-account-theme {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.overlay-menu-account-theme-label {
+  font-family: var(--font-secondary, ui-sans-serif, system-ui, sans-serif);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  line-height: 1.2;
+  color: rgba(15, 23, 42, 0.42);
+  user-select: none;
+}
+
+html[data-theme="dark"] .overlay-menu-account-theme-label {
+  color: rgba(255, 255, 255, 0.42);
+}
+
+[data-account-menu] .overlay-menu-account-theme .theme-toggle {
+  margin: 0;
+  color: rgba(15, 23, 42, 0.55);
+}
+
+html[data-theme="dark"] [data-account-menu] .overlay-menu-account-theme .theme-toggle {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+[data-account-menu] .overlay-menu-account-theme .theme-toggle:hover {
+  color: #000;
+}
+
+html[data-theme="dark"] [data-account-menu] .overlay-menu-account-theme .theme-toggle:hover {
+  color: #fff;
+}
+
 /* Signed-out drawer stacks its full-width CTAs (Demo now over Sign in). */
 .overlay-menu-footer-row--stack {
   flex-direction: column;

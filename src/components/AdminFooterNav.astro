@@ -32,7 +32,7 @@ function footerBtnHidden(button: PrimaryAdminFooterButton): boolean | undefined 
       hidden={footerBtnHidden("dashboard")}
     >
       <LayoutDashboard size={20} strokeWidth={1.75} />
-      <span id="footer-dashboard-badge" class="footer-nav-badge" hidden>0</span>
+      <span id="footer-dashboard-badge" class="footer-nav-badge count-badge count-badge--xs" hidden>0</span>
     </button>
     <button
       type="button"
@@ -53,7 +53,7 @@ function footerBtnHidden(button: PrimaryAdminFooterButton): boolean | undefined 
       hidden={footerBtnHidden("inbox")}
     >
       <Mail size={20} strokeWidth={1.75} />
-      <span id="footer-inbox-badge" class="footer-nav-badge" hidden>0</span>
+      <span id="footer-inbox-badge" class="footer-nav-badge count-badge count-badge--xs" hidden>0</span>
     </button>
     <button
       type="button"
@@ -440,13 +440,9 @@ function footerBtnHidden(button: PrimaryAdminFooterButton): boolean | undefined 
     right: 0;
     /* Center of badge sits on the button’s top-right corner */
     transform: translate(50%, -50%);
-    min-width: 14px;
-    height: 14px;
-    padding: 0 3px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.5rem;
     font-weight: 700;
     line-height: 1;
     text-align: center;

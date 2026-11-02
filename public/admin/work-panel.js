@@ -1748,7 +1748,7 @@ function mountWorkDetailTabs(pane, activeTab, onSelect, opts = {}) {
       if (tab.id === 'time') {
         btn.innerHTML =
           `${escHtml(tab.label)}` +
-          `<span class="footer-nav-badge wk-detail-tab-badge" hidden aria-hidden="true"></span>`;
+          `<span class="footer-nav-badge count-badge count-badge--xs wk-detail-tab-badge" hidden aria-hidden="true"></span>`;
       } else {
         btn.textContent = tab.label;
       }
@@ -1861,7 +1861,7 @@ function mountClientDetailTabs(pane, activeTab, onSelect, opts = {}) {
       if (tab.id === 'projects') {
         btn.innerHTML =
           `${escHtml(tab.label)}` +
-          `<span class="footer-nav-badge cl-detail-tab-badge" hidden aria-hidden="true">0</span>`;
+          `<span class="footer-nav-badge count-badge count-badge--xs cl-detail-tab-badge" hidden aria-hidden="true">0</span>`;
       } else {
         btn.textContent = tab.label;
       }
