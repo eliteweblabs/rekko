@@ -97,7 +97,22 @@ function formatPhoneDisplay(raw: string): string {
   return raw.trim();
 }
 
+function normalizeWebsiteUrl(raw: string): string {
+  const t = raw.trim();
+  if (!t) return '';
+  if (/^https?:\/\//i.test(t)) return t.replace(/\/+$/, '') || t;
+  return `https://${t.replace(/^\/\//, '').replace(/\/+$/, '')}`;
+}
+
+function formatWebsiteDisplay(url: string): string {
+  return url.replace(/^https?:\/\//i, '').replace(/\/+$/, '');
+}
+
 const phoneLabel = phoneRaw ? formatPhoneDisplay(phoneRaw) : '';
+
+const websiteRaw = company.domain?.trim() || '';
+const websiteHref = websiteRaw ? normalizeWebsiteUrl(websiteRaw) : '';
+const websiteLabel = websiteHref ? formatWebsiteDisplay(websiteHref) : '';
 
 const directionsDest =
   geo && Number.isFinite(geo.lat) && Number.isFinite(geo.lng)
@@ -275,6 +290,25 @@ try {
           </a>
         )}
 
+        {websiteHref && (
+          <a
+            class="nfc-btn"
+            href={websiteHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={websiteLabel ? `Visit ${websiteLabel}` : `Visit ${displayName} website`}
+          >
+            <span class="nfc-btn-ico" aria-hidden="true">
+              <!-- IOS_ICONS.globe — keep in sync with public/admin/admin-ui.js -->
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+            </span>
+            <span class="nfc-btn-copy">
+              <span class="nfc-btn-label">Website</span>
+              {websiteLabel && <span class="nfc-btn-meta">{websiteLabel}</span>}
+            </span>
+          </a>
+        )}
+
         {directionsHref && (
           <a
             class="nfc-btn"
@@ -406,7 +440,9 @@ try {
   }
 
   .nfc-body a[href^="mailto:"],
-  .nfc-body a[href^="tel:"] {
+  .nfc-body a[href^="tel:"],
+  .nfc-body a[href^="http:"],
+  .nfc-body a[href^="https:"] {
     -webkit-user-select: text;
     user-select: text;
   }
