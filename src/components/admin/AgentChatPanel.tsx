@@ -350,10 +350,7 @@ function useAgentRunStatus(
 
     const poll = async () => {
       if (streamedProgress) return;
-      if (
-        typeof window !== 'undefined' &&
-        (window.__reaveShouldSkipAdminBackgroundPoll?.() || window.__reaveShouldSkipAdminPoll?.())
-      ) {
+      if (typeof window !== 'undefined' && window.__reaveShouldSkipAdminPoll?.()) {
         return;
       }
       try {
@@ -920,10 +917,9 @@ async function cancelChatTurn(threadId: string): Promise<void> {
 async function fetchRunProgress(
   threadId: string,
 ): Promise<{ running: boolean; progress: AgentProgress | null } | null> {
-  if (
-    typeof window !== 'undefined' &&
-    (window.__reaveShouldSkipAdminBackgroundPoll?.() || window.__reaveShouldSkipAdminPoll?.())
-  ) {
+  // Active chat recovery must not wait for background-poll arming — after a hard
+  // reload that gate stays up until Clerk loads and the thread looks dead/stuck.
+  if (typeof window !== 'undefined' && window.__reaveShouldSkipAdminPoll?.()) {
     return null;
   }
   try {
@@ -3688,11 +3684,14 @@ function useRecoverInFlightRun(
       if (document.visibilityState === 'visible') schedule(0);
     };
     document.addEventListener('visibilitychange', onVisible);
+    const onPollsArmed = () => schedule(0);
+    window.addEventListener('reave-admin-background-polls-armed', onPollsArmed);
 
     return () => {
       cancelled = true;
       if (timer) clearTimeout(timer);
       document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('reave-admin-background-polls-armed', onPollsArmed);
     };
   }, [propsRef, threadId]);
 

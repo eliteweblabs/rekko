@@ -2585,9 +2585,22 @@ async function openChatImpl(id, opts = {}) {
     endRender();
     endOpen({ ok: true, messages: chatState.messages.length, title: chatState.title });
   } catch (e) {
+    chatState.paneLoading = false;
     endOpen({ ok: false, err: e.message });
+    const pane = root?.querySelector('.ch-pane');
+    if (pane && chatState.activeId) {
+      pane.innerHTML = '';
+      pane.appendChild(shell.buildChatPaneHeader());
+      const errEl = document.createElement('div');
+      errEl.className = 'de-loading de-error';
+      errEl.textContent = `Could not load session: ${e.message}`;
+      pane.appendChild(errEl);
+    } else {
+      renderChatPane();
+    }
     alert(`Could not load session: ${e.message}`);
   } finally {
+    chatState.paneLoading = false;
     root?.classList.remove('ch-opening');
   }
 }
