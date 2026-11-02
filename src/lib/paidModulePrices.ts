@@ -18,6 +18,7 @@ export const PAID_MODULE_PRICES: Partial<Record<FeatureId, ModulePrice>> = {
   site_monitoring: { amount: 175, interval: 'once', currency: 'usd' },
   documents: { amount: 175, interval: 'once', currency: 'usd' },
   digital_signature: { amount: 175, interval: 'once', currency: 'usd' },
+  billing_esign: { amount: 175, interval: 'once', currency: 'usd' },
   voice: { amount: 250, interval: 'once', currency: 'usd' },
   vapi: { amount: 250, interval: 'once', currency: 'usd' },
   sms: { amount: 200, interval: 'once', currency: 'usd' },

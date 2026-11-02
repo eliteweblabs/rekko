@@ -52,6 +52,7 @@ const FEATURE_MOD_ICONS: Record<string, string> = {
   billing: 'receipt',
   documents: 'file-text',
   digital_signature: 'edit',
+  billing_esign: 'edit',
   email_marketing: 'send',
   google_workspace: 'mail',
   materials_pricing: 'shopping-bag',

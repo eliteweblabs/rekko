@@ -27,6 +27,7 @@ export const MODULE_DISPLAY_GROUPS: readonly ModuleDisplayGroup[] = [
       'billing',
       'documents',
       'digital_signature',
+      'billing_esign',
       'scheduling',
       'time_tracking',
       'work_day',

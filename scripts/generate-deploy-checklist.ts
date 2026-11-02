@@ -25,6 +25,7 @@ const FEATURE_LABELS: Record<string, string> = {
   analytic_audit: 'Sites',
   documents: 'Dynamic Documents',
   digital_signature: 'Digital Signature',
+  billing_esign: 'Estimate Digital Signature',
   voice: 'Telnyx Voice Agent',
   vapi: 'VAPI Assistant',
   carddav: 'CardDAV (iOS Contacts Sync)',

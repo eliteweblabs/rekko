@@ -107,9 +107,14 @@ export function hasIdeogramImageGen(): boolean {
   return hasFeature('website') || hasFeature('ideogram');
 }
 
-/** Paid e-sign add-on — requires Dynamic Documents plus digital_signature. */
+/** Document template e-sign — requires Dynamic Documents plus digital_signature. */
 export function hasDigitalSignature(): boolean {
   return hasFeature('documents') && hasFeature('digital_signature');
+}
+
+/** Crater estimate / quote e-sign — separate add-on on Crater Financial. */
+export function hasBillingEsign(): boolean {
+  return hasFeature('billing') && hasFeature('billing_esign');
 }
 
 /** Admin Inbox tab, inbound triage, and in-app compose from contacts. */

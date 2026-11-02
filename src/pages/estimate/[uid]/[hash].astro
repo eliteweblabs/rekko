@@ -9,7 +9,7 @@ import Header from '../../../components/Header.astro';
 import SiteFooter from '../../../components/SiteFooter.astro';
 import Favicon from '../../../components/Favicon.astro';
 import ViewportMeta from '../../../components/ViewportMeta.astro';
-import { hasDigitalSignature } from '../../../lib/features';
+import { hasBillingEsign } from '../../../lib/features';
 import {
   craterGetEstimateByHash,
   isCraterConfigured,
@@ -30,8 +30,8 @@ let payload: CraterEstimateSignPayload | null = null;
 
 if (!uid || !uniqueHash) {
   error = 'Invalid link.';
-} else if (!hasDigitalSignature()) {
-  error = 'Electronic signing is not available on this site.';
+} else if (!hasBillingEsign()) {
+  error = 'Estimate signing is not available on this site.';
 } else if (!isCraterConfigured()) {
   error = 'Billing is not configured.';
 } else {

@@ -108,6 +108,10 @@ assert.ok(FEATURE_SALE_SHEET.has('digital_signature'));
 assert.equal(moduleDisplayGroupId('digital_signature'), 'work');
 assert.deepEqual(FEATURE_REQUIRES.digital_signature, ['documents']);
 assert.deepEqual(expandFeatureRequirements(['digital_signature']), ['documents', 'digital_signature']);
+assert.equal(FEATURE_LABELS.billing_esign, 'Estimate Digital Signature');
+assert.deepEqual(FEATURE_REQUIRES.billing_esign, ['billing']);
+assert.deepEqual(expandFeatureRequirements(['billing_esign']), ['billing', 'billing_esign']);
+assert.equal(moduleDisplayGroupId('billing_esign'), 'work');
 assert.deepEqual(FEATURE_REQUIRES.analytic_audit, ['uptime_monitoring']);
 assert.deepEqual(FEATURE_REQUIRES.uptime_monitoring, ['analytic_audit']);
 assert.deepEqual(expandFeatureRequirements(['analytic_audit']).sort(), [

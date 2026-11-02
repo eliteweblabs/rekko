@@ -241,6 +241,12 @@ const MARKETING_FEATURES_RAW: readonly MarketingFeature[] = [
     kind: 'capability',
   },
   {
+    id: 'billing-esign',
+    label: 'Estimate Digital Signature',
+    modules: ['billing_esign'],
+    kind: 'capability',
+  },
+  {
     id: 'voice',
     label: 'Voice & Call Routing',
     modules: ['voice'],

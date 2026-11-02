@@ -434,6 +434,7 @@ export const DEFAULT_MODULE_INDUSTRIES: Readonly<Record<string, readonly string[
   scheduling: [...FIELD_SERVICE_INDUSTRIES, 'general', 'plumbing', 'electricians', 'marketers', 'law', 'lawyers', 'real-estate-agents'],
   documents: ['law', 'lawyers', 'general', 'plumbing', 'electricians', 'real-estate-agents', 'entrepreneurs', 'engineers'],
   digital_signature: ['law', 'lawyers', 'real-estate-agents', 'general', 'plumbing', 'electricians'],
+  billing_esign: ALL_INDUSTRIES,
   voice: ['hair-stylists', 'general', 'plumbing', 'electricians', 'law', 'lawyers', 'marketers', 'real-estate-agents'],
   vapi: ['hair-stylists', 'general', 'plumbing', 'electricians', 'law', 'lawyers', 'marketers'],
   sms: ALL_INDUSTRIES,

@@ -19,7 +19,7 @@ import { brandedEmailHtml } from '../../../../lib/emailTemplates';
 import { postToSystemAlertsThread } from '../../../../lib/adminAgentAlert';
 import { checkInMemoryRateLimit } from '../../../../lib/inMemoryRateLimit';
 import { clientIp } from '../../../../lib/clientIp';
-import { hasDigitalSignature } from '../../../../lib/features';
+import { hasBillingEsign } from '../../../../lib/features';
 import { buildSignatureBlock, fmtDateLong } from '../../../../lib/esignSignatureBlock';
 import {
   craterAcceptSignedEstimate,
@@ -38,8 +38,8 @@ function err(status: number, error: string): Response {
 }
 
 export const POST: APIRoute = async ({ params, request }) => {
-  if (!hasDigitalSignature()) {
-    return err(403, 'Digital Signature is not enabled on this install');
+  if (!hasBillingEsign()) {
+    return err(403, 'Estimate Digital Signature is not enabled on this install');
   }
   if (!isCraterConfigured()) {
     return err(503, 'Crater Financial is not configured');

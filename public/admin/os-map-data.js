@@ -44,7 +44,8 @@ const SYSTEM_NODES = [
   { id: 'galene', title: 'Galene', sub: 'meet.example.com · video rooms (FEATURES: video_meet)', icon: '📹', hue: 210, status: true, group: 'reave', x: 880, y: 480 },
   { id: 'portal', title: 'Client Portal', sub: '/c/:uid · vault · comments · tracked shares · help chat', icon: '📇', hue: 320, status: true, group: 'reave', x: 640, y: 408 },
   { id: 'documents', title: 'Dynamic Documents', sub: 'templates · fill · send / print (FEATURES: documents)', icon: '📄', hue: 25, status: true, group: 'reave', x: 760, y: 360 },
-  { id: 'digital_signature', title: 'Digital Signature', sub: 'e-sign · ESIGN/UETA audit · POST /api/doc/:uid/sign (FEATURES: digital_signature)', icon: '✍️', hue: 8, status: true, group: 'reave', x: 760, y: 448 },
+  { id: 'digital_signature', title: 'Digital Signature', sub: 'e-sign · ESIGN/UETA audit · POST /api/doc/:uid/sign · add-on: digital_signature + documents', icon: '✍️', hue: 8, status: true, group: 'reave', x: 760, y: 448 },
+  { id: 'billing_esign', title: 'Estimate Digital Signature', sub: 'Crater quotes · /estimate/:uid/:hash · POST /api/estimate/:uid/sign · add-on: billing_esign + billing', icon: '📝', hue: 4, status: true, group: 'reave', x: 880, y: 448 },
   { id: 'engagement', title: 'Engagement alerts', sub: 'vault · punch list · share opens · deck views · contact form · dashboard banners', icon: '👀', hue: 200, status: true, group: 'reave', x: 640, y: 300 },
   { id: 'carddav', title: 'CardDAV', sub: '/carddav · iOS sync (FEATURES: carddav)', icon: '📲', hue: 275, status: true, group: 'reave', x: 640, y: 264 },
   { id: 'materials_api', title: 'materials-api', sub: 'Home Depot pricing · search · quotes', icon: '🧱', hue: 18, status: true, group: 'reave', x: 880, y: 552 },
@@ -133,6 +134,8 @@ const SYSTEM_EDGES = [
   { from: 'documents', to: 'contact_api', label: 'fill shortcodes' },
   { from: 'documents', to: 'digital_signature', label: 'paid add-on', dashed: true },
   { from: 'digital_signature', to: 'portal', label: 'signed copies', dashed: true },
+  { from: 'crater', to: 'billing_esign', label: 'paid add-on', dashed: true },
+  { from: 'billing_esign', to: 'portal', label: 'signed estimates', dashed: true },
   { from: 'portal', to: 'contact_api', label: 'portal link (read/write)' },
   { from: 'portal', to: 'crater', label: 'billing', dashed: true },
   { from: 'portal', to: 'changedetection', label: 'site watch sync', dashed: true },
@@ -265,7 +268,7 @@ const SYSTEM_EDGES = [
 
 const SYSTEM_GROUPS = [
   { id: 'clients', title: 'Entry points', hue: 300, members: ['web', 'sms_caller', 'dev', 'focus_chat', 'vapi', 'siri', 'digital_audit'] },
-  { id: 'reave', title: 'Railway — App', hue: 150, members: ['astro', 'deploy_wizard', 'deck_industries', 'module_catalog', 'app_pg', 'web_push', 'engagement', 'contact_api', 'contact_pg', 'crater', 'galene', 'materials_api', 'inventory_api', 'fleet_api', 'portal', 'documents', 'digital_signature', 'carddav', 'media_webdav', 'media_public', 'contacts_dash', 'calcom_api', 'code_dev', 'newsletter', 'online_reviews', 'social_feed', 'social_lead_scanner', 'analytic_audit', 'seo_directory', 'event_ticketing', 'cookie_notice', 'credit_check', 'dscr_calculator', 'website', 'time_tracking', 'work_day', 'content_mgmt', 'wp_content', 'visit_planner', 'client_map', 'dealer_map', 'sales_sheet', 'google_workspace_mod'] },
+  { id: 'reave', title: 'Railway — App', hue: 150, members: ['astro', 'deploy_wizard', 'deck_industries', 'module_catalog', 'app_pg', 'web_push', 'engagement', 'contact_api', 'contact_pg', 'crater', 'galene', 'materials_api', 'inventory_api', 'fleet_api', 'portal', 'documents', 'digital_signature', 'billing_esign', 'carddav', 'media_webdav', 'media_public', 'contacts_dash', 'calcom_api', 'code_dev', 'newsletter', 'online_reviews', 'social_feed', 'social_lead_scanner', 'analytic_audit', 'seo_directory', 'event_ticketing', 'cookie_notice', 'credit_check', 'dscr_calculator', 'website', 'time_tracking', 'work_day', 'content_mgmt', 'wp_content', 'visit_planner', 'client_map', 'dealer_map', 'sales_sheet', 'google_workspace_mod'] },
   { id: 'external', title: 'External APIs', hue: 240, members: ['openrouter', 'omniroute', 'anthropic', 'railway_gql', 'railway_webhook', 'kinsta_api', 'resend', 'github', 'site_repo', 'telnyx', 'wayback', 'changedetection', 'uptimerobot', 'clerk', 'calcom_web', 'plausible', 'google_search_console', 'ga4', 'indexnow', 'bing_webmaster', 'google_places', 'pexels', 'ideogram', 'ipwhois', 'brightlocal', 'instagram_oauth', 'namecom', 'cloudflare', 'google_workspace'] },
 ];
 

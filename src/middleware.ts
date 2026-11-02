@@ -117,7 +117,7 @@ function isFeatureBlockedPath(pathname: string): boolean {
   }
   if (
     (pathname.startsWith("/estimate/") || /^\/api\/estimate\/[^/]+\/sign\/?$/.test(pathname)) &&
-    (!hasFeature("digital_signature") || isFeatureRuntimeBlocked("digital_signature"))
+    (!hasFeature("billing_esign") || isFeatureRuntimeBlocked("billing_esign"))
   ) {
     return true;
   }

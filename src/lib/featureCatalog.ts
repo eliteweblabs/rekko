@@ -16,6 +16,7 @@ export const FEATURE_IDS = [
   'uptime_monitoring',
   'documents',
   'digital_signature',
+  'billing_esign',
   'voice',
   'vapi',
   'sms',
@@ -260,6 +261,7 @@ export const FEATURE_LABELS: Record<FeatureId, string> = {
   uptime_monitoring: 'Sites (Uptime)',
   documents: 'Dynamic Documents',
   digital_signature: 'Digital Signature',
+  billing_esign: 'Estimate Digital Signature',
   voice: 'Telnyx Voice Agent',
   vapi: 'VAPI Voice Agent',
   sms: 'Two-Way SMS',
@@ -314,7 +316,10 @@ export const FEATURE_BLURBS: Record<FeatureId, string> = {
   site_monitoring: 'Watch pages for changes via ChangeDetection.io',
   uptime_monitoring: 'Bundled with Sites — UptimeRobot checks & outage alerts',
   documents: 'Spins up pre-filled NDA, 1040, or anything else in a branded template with the client\'s name, company, & contact info — send it as-is, no editing.',
-  digital_signature: 'They sign on their phone — legally binding, with a full audit trail of who, when, & from where.',
+  digital_signature:
+    'They sign on their phone — legally binding, with a full audit trail of who, when, & from where.',
+  billing_esign:
+    'Clients e-sign Crater quotes & estimates on their phone — same audit trail, synced to ACCEPTED in Crater Financial.',
   voice: 'Phone agent & call routing on Telnyx',
   vapi: 'Voice assistant powered by Vapi',
   sms: 'Two-way texting via Telnyx — threaded on the contact, send from chat, Siri, or the portal. Cannot be tested in a demo environment (needs a live Telnyx number & carrier setup).',
@@ -404,6 +409,7 @@ export const FEATURE_SALE_SHEET: ReadonlySet<FeatureId> = new Set<FeatureId>([
   'video_meet',
   'documents',
   'digital_signature',
+  'billing_esign',
   'scheduling',
   'email_marketing',
   'email_inbox',
@@ -420,6 +426,7 @@ export const FEATURE_SALE_SHEET: ReadonlySet<FeatureId> = new Set<FeatureId>([
  */
 export const FEATURE_REQUIRES: Partial<Record<FeatureId, readonly FeatureId[]>> = {
   digital_signature: ['documents'],
+  billing_esign: ['billing'],
   /** Sites = analytics fleet + uptime — enabling either turns on both. */
   analytic_audit: ['uptime_monitoring'],
   uptime_monitoring: ['analytic_audit'],

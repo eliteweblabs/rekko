@@ -41,6 +41,7 @@ const FEATURE_IDS_LIST = [
   'uptime_monitoring',
   'documents',
   'digital_signature',
+  'billing_esign',
   'voice',
   'vapi',
   'sms',
