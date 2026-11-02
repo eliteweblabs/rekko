@@ -478,14 +478,50 @@ html[data-theme="dark"] .app-header-logo-svg,
 html[data-theme="dark"] .app-header-logo-img {
   filter: invert(1);
 }
-/** Count badges — iOS-style red fill, white numeral */
+/**
+ * Count badges — iOS-style red fill, white numeral.
+ * Sizes mirror ios-icon-btn (sm / xs): sm = header profile, xs = footer nav.
+ */
+:root {
+  --count-badge-sm-min: calc(10px * var(--app-header-chrome-scale, 1));
+  --count-badge-sm-h: calc(10px * var(--app-header-chrome-scale, 1));
+  --count-badge-sm-pad-x: calc(2px * var(--app-header-chrome-scale, 1));
+  --count-badge-sm-font: calc(0.375rem * var(--app-header-chrome-scale, 1));
+  --count-badge-sm-ring: calc(1.5px * var(--app-header-chrome-scale, 1));
+
+  --count-badge-xs-min: 8px;
+  --count-badge-xs-h: 8px;
+  --count-badge-xs-pad-x: 2px;
+  --count-badge-xs-font: 0.375rem;
+  --count-badge-xs-ring: 1px;
+}
+
+.count-badge,
 .topbar-badge,
 .footer-nav-badge {
   border-radius: 9999px;
   background: #ff3b30;
   color: #fff;
   -webkit-text-fill-color: #fff;
-  box-shadow: 0 0 0 1.5px var(--bg, #fff);
+  box-shadow: 0 0 0 var(--count-badge-ring, 1.5px) var(--bg, #fff);
+}
+
+.count-badge--sm,
+.topbar-badge {
+  --count-badge-ring: var(--count-badge-sm-ring);
+  min-width: var(--count-badge-sm-min);
+  height: var(--count-badge-sm-h);
+  padding: 0 var(--count-badge-sm-pad-x);
+  font-size: var(--count-badge-sm-font);
+}
+
+.count-badge--xs,
+.footer-nav-badge {
+  --count-badge-ring: var(--count-badge-xs-ring);
+  min-width: var(--count-badge-xs-min);
+  height: var(--count-badge-xs-h);
+  padding: 0 var(--count-badge-xs-pad-x);
+  font-size: var(--count-badge-xs-font);
 }
 
 /** Keep iOS red on active / collapsed dashboard (no invert) */
@@ -500,5 +536,5 @@ body.footer-chat-inline-dashboard
   background: #ff3b30;
   color: #fff;
   -webkit-text-fill-color: #fff;
-  box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.95);
+  box-shadow: 0 0 0 var(--count-badge-xs-ring, 1px) rgba(255, 255, 255, 0.95);
 }
