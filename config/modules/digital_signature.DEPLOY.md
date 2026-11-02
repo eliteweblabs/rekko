@@ -22,6 +22,7 @@ and print a filled document — they cannot e-sign.
 - Enable `documents` and `digital_signature` in install config `features[]`
 - Create signing templates in Admin → Documents
 - Client signs at `/doc/:uid/:template` (consent + typed name)
+- Crater estimates: `/estimate/:uid/:unique_hash` when Crater Financial + `CRATER_API_*` are set
 
 ## Checklist
 

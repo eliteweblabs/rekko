@@ -315,6 +315,88 @@ export async function craterListEstimates(
   });
 }
 
+export type CraterEstimateSignPayload = {
+  event: string;
+  customer: {
+    id?: number;
+    name?: string | null;
+    email?: string | null;
+    contact_uid?: string | null;
+  };
+  company: { id?: number; name?: string | null };
+  estimate: {
+    id: number;
+    estimate_number: string;
+    estimate_date?: string | null;
+    expiry_date?: string | null;
+    status: string;
+    total: number;
+    notes?: string | null;
+    signed_at?: string | null;
+    signer_name?: string | null;
+    signature_doc_id?: string | null;
+    signature_view_url?: string | null;
+    items: Array<{
+      name: string;
+      description?: string | null;
+      quantity: number;
+      price: number;
+      total: number;
+    }>;
+  };
+  urls: {
+    pdf?: string | null;
+    admin?: string | null;
+    sign?: string | null;
+  };
+  crater: {
+    estimate_id: number;
+    unique_hash?: string | null;
+  };
+};
+
+export async function craterGetEstimateByHash(
+  uniqueHash: string,
+  contactUid: string
+): Promise<CraterResult<{ payload: CraterEstimateSignPayload }>> {
+  return craterFetch<{ payload: CraterEstimateSignPayload }>(
+    `/api/custom/estimate/by-hash/${encodeURIComponent(uniqueHash)}`,
+    {
+      method: 'GET',
+      query: { contact_uid: contactUid },
+    },
+  );
+}
+
+export async function craterAcceptSignedEstimate(
+  estimateId: number,
+  body: {
+    contact_uid: string;
+    signer_name: string;
+    signed_at: string;
+    signature_doc_id: string;
+    signature_view_url: string;
+  }
+): Promise<
+  CraterResult<{
+    ok: boolean;
+    already_signed?: boolean;
+    estimate: {
+      id: number;
+      status: string;
+      signed_at?: string | null;
+      signer_name?: string | null;
+      signature_doc_id?: string | null;
+      signature_view_url?: string | null;
+    };
+  }>
+> {
+  return craterFetch(`/api/custom/estimate/${estimateId}/accept-signed`, {
+    method: 'POST',
+    body,
+  });
+}
+
 export type CraterInvoiceCounts = {
   outstanding: number;
   paid: number;

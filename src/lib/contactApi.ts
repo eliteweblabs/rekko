@@ -295,6 +295,10 @@ export type PortalDocument = {
   consentAt?: string;
   /** SHA-256 hex digest of the filled HTML presented to the signer (pre-signature-block). */
   contentHash?: string;
+  /** Crater estimate unique_hash when this artifact is an e-signed estimate. */
+  estimateUniqueHash?: string;
+  /** Crater estimate id (billing) for cross-reference. */
+  craterEstimateId?: number;
 };
 
 export type SiteMonitoringMeta = {
