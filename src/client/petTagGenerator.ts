@@ -1,4 +1,13 @@
 import {
+  buildPetTagNdefRecords,
+  petTagCanEncodeCall,
+  petTagCanEncodePayload,
+  phoneToTelUri,
+  primaryTagPhone,
+  type PetTagNdefRecord,
+  type PetTagNfcPayload,
+} from '../lib/petTagNfc';
+import {
   buildPetTagVCard,
   petTagFormattedName,
   petTagHasContent,
@@ -52,6 +61,23 @@ function readFields(): PetTagFields {
   };
 }
 
+function readNfcPayload(): PetTagNfcPayload {
+  const picked = document.querySelector<HTMLInputElement>('input[name="pet-tag-payload"]:checked');
+  return picked?.value === 'vcard' ? 'vcard' : 'call';
+}
+
+function ndefRecordsToWebNfc(records: PetTagNdefRecord[]): NdefRecordInit[] {
+  return records.map((rec) => {
+    if (rec.kind === 'url') return { recordType: 'url', data: rec.url };
+    if (rec.kind === 'text') return { recordType: 'text', data: rec.text, lang: rec.lang ?? 'en' };
+    return {
+      recordType: 'mime',
+      mediaType: rec.mediaType,
+      data: encodeUtf8(rec.body),
+    };
+  });
+}
+
 function formatPhoneDisplay(raw: string): string {
   const digits = raw.replace(/\D/g, '');
   const n = digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits;
@@ -76,10 +102,16 @@ function setPreviewText(id: string, text: string, hiddenWhenEmpty = true): void 
   el.hidden = false;
 }
 
-function setActionDisabled(disabled: boolean): void {
-  for (const id of ['pet-tag-download', 'pet-tag-copy', 'pet-tag-write']) {
+function setActionDisabled(disabled: boolean, fields: PetTagFields): void {
+  for (const id of ['pet-tag-download', 'pet-tag-copy']) {
     const el = $(id);
     if (el instanceof HTMLButtonElement) el.disabled = disabled;
+  }
+  const writeBtn = $('pet-tag-write');
+  const payload = readNfcPayload();
+  const canWritePayload = !disabled && petTagCanEncodePayload(fields, payload);
+  if (writeBtn instanceof HTMLButtonElement) {
+    writeBtn.disabled = !canWritePayload || !webNfcCanWrite();
   }
 }
 
@@ -92,7 +124,8 @@ function syncShareUrl(fields: PetTagFields): void {
 
 function updatePreview(fields: PetTagFields): void {
   const has = petTagHasContent(fields);
-  setActionDisabled(!has);
+  const payload = readNfcPayload();
+  setActionDisabled(!has, fields);
 
   const titleEl = $('pet-tag-preview-title');
   if (titleEl) titleEl.textContent = has ? petTagFormattedName(fields) : 'Preview';
@@ -142,6 +175,17 @@ function updatePreview(fields: PetTagFields): void {
   const plain = has ? petTagPlainTextSummary(fields) : '';
   setPreviewText('pet-tag-preview-plain', plain ? `Tag text: ${plain}` : '', true);
 
+  const tel = phoneToTelUri(primaryTagPhone(fields));
+  const tapLine =
+    payload === 'call' && tel
+      ? `On tap (iPhone/Android): opens Phone at ${tel.replace(/^tel:/, '')}`
+      : payload === 'vcard'
+        ? 'On tap: vCard MIME (often ignored on iPhone — use Tap to call instead)'
+        : payload === 'call' && !tel
+          ? 'Add a phone number for tap-to-call tags (works like URL tags on iPhone).'
+          : '';
+  setPreviewText('pet-tag-preview-tap', tapLine, true);
+
   syncShareUrl(fields);
 }
 
@@ -168,15 +212,16 @@ function webNfcCanWrite(): boolean {
   );
 }
 
-async function writeNfcTag(fields: PetTagFields): Promise<void> {
-  const vcard = buildPetTagVCard(fields);
-  const plain = petTagPlainTextSummary(fields);
-  const records: NdefRecordInit[] = [
-    { recordType: 'mime', mediaType: 'text/vcard', data: encodeUtf8(vcard) },
-  ];
-  if (plain) {
-    records.push({ recordType: 'text', data: plain, lang: 'en' });
+async function writeNfcTag(fields: PetTagFields, payload: PetTagNfcPayload): Promise<void> {
+  const built = buildPetTagNdefRecords(fields, payload);
+  if (!built.length) {
+    throw new Error(
+      payload === 'call'
+        ? 'Add a phone number — iPhone only reads tel: URI tags, not vCard files.'
+        : 'Nothing to write.',
+    );
   }
+  const records = ndefRecordsToWebNfc(built);
   const NdefWriterCtor = (globalThis as typeof globalThis & { NDEFWriter?: new () => NdefWriterLike })
     .NDEFWriter;
   if (!NdefWriterCtor) throw new Error('Web NFC is not available on this device.');
@@ -223,6 +268,11 @@ export function initPetTagGenerator(): void {
   };
 
   form.addEventListener('input', scheduleUpdate);
+  form.addEventListener('change', (ev) => {
+    if (ev.target instanceof HTMLInputElement && ev.target.name === 'pet-tag-payload') {
+      scheduleUpdate();
+    }
+  });
   updatePreview(readFields());
 
   $('pet-tag-download')?.addEventListener('click', () => {
@@ -252,10 +302,24 @@ export function initPetTagGenerator(): void {
     if (!webNfcCanWrite()) {
       return;
     }
+    const payload = readNfcPayload();
+    if (!petTagCanEncodePayload(fields, payload)) {
+      showStatus(
+        payload === 'call'
+          ? 'Tap-to-call needs a phone number in the form.'
+          : 'Add at least one field before writing.',
+        true,
+      );
+      return;
+    }
     showStatus('Hold the blank tag against the back of your phone…');
     try {
-      await writeNfcTag(fields);
-      showStatus('Tag written. Test in airplane mode.');
+      await writeNfcTag(fields, payload);
+      showStatus(
+        payload === 'call'
+          ? 'Tag written (tel: + message). Test in airplane mode — should prompt to call.'
+          : 'Tag written (vCard). iPhone may not react; Android should open Contacts.',
+      );
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Write failed';
       const hint =

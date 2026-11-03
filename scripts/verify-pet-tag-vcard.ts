@@ -12,6 +12,11 @@ import {
   petTagSearchParamsFromFields,
   petTagVcfFilename,
 } from '../src/lib/petTagVcard.ts';
+import {
+  buildPetTagNdefRecords,
+  phoneToTelUri,
+  petTagCanEncodeCall,
+} from '../src/lib/petTagNfc.ts';
 
 const vcard = buildPetTagVCard({
   ownerName: 'Jane Doe',
@@ -23,7 +28,23 @@ const vcard = buildPetTagVCard({
   businessPhone: '503-555-0100',
 });
 
-assert.match(vcard, /FN:Max — Jane Doe/);
+assert.match(vcard, /FN:Max - Jane Doe/);
+assert.equal(phoneToTelUri('4135550100'), 'tel:+14135550100');
+assert.equal(petTagCanEncodeCall({ ownerName: '', dogName: '', phone: '4135550100', altPhone: '', address: '', businessName: '', businessPhone: '' }), true);
+const callRecords = buildPetTagNdefRecords(
+  {
+    ownerName: 'Jane',
+    dogName: 'Max',
+    phone: '4135550100',
+    altPhone: '',
+    address: '',
+    businessName: '',
+    businessPhone: '',
+  },
+  'call',
+);
+assert.equal(callRecords[0]?.kind, 'url');
+assert.equal(callRecords[0]?.kind === 'url' ? callRecords[0].url : '', 'tel:+14135550100');
 assert.match(vcard, /N:Doe;Jane;;;/);
 assert.match(vcard, /TEL;TYPE=CELL:\(413\) 555-0100/);
 assert.match(vcard, /TEL;TYPE=HOME:413-555-0199/);
@@ -71,7 +92,7 @@ const page = readFileSync('src/pages/pet-tag.astro', 'utf8');
 const client = readFileSync('src/client/petTagGenerator.ts', 'utf8');
 const mw = readFileSync('src/middleware.ts', 'utf8');
 assert.match(page, /initPetTagGenerator/);
-assert.match(client, /text\/vcard/);
+assert.match(client, /buildPetTagNdefRecords/);
 assert.match(client, /webNfcCanWrite/);
 assert.match(client, /overwrite: true/);
 assert.match(mw, /\/pet-tag"/);

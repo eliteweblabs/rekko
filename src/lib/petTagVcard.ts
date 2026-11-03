@@ -39,7 +39,7 @@ export function parseOwnerNameForVCard(ownerName: string): { first: string; last
 export function petTagFormattedName(fields: PetTagFields): string {
   const dog = trimField(fields.dogName);
   const owner = trimField(fields.ownerName);
-  if (dog && owner) return `${dog} — ${owner}`;
+  if (dog && owner) return `${dog} - ${owner}`;
   if (dog) return dog;
   if (owner) return owner;
   const biz = trimField(fields.businessName);

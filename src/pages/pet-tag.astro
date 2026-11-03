@@ -84,9 +84,10 @@ const description =
           website link, so finders can call you with <strong>no internet</strong>.
         </p>
         <p class="pet-tag-platform" id="pet-tag-platform-note">
-          Programming the chip needs either <strong>Chrome on Android</strong> (Write to NFC tag below)
-          or the free <a href="https://apps.apple.com/app/nfc-tools/id1252974019" rel="noopener noreferrer" target="_blank">NFC Tools</a> app on iPhone after you <strong>Download .vcf</strong>.
-          A web page cannot write NFC from a link alone — Safari and desktop browsers do not allow it.
+          <strong>Why URL tags work but .vcf often does not on iPhone:</strong> iOS only auto-reads certain
+          <strong>URI</strong> records (<code>https://</code>, <code>tel:</code>, <code>sms:</code>, …). It
+          <strong>ignores</strong> vCard data on the chip. Use <strong>Tap to call</strong> below (a
+          <code>tel:</code> record — still offline, not a website).
         </p>
       </header>
 
@@ -168,6 +169,23 @@ const description =
         </form>
 
         <section class="pet-tag-preview-wrap" aria-labelledby="pet-tag-preview-heading">
+          <fieldset class="pet-tag-fieldset pet-tag-payload-fieldset">
+            <legend>What goes on the chip</legend>
+            <label class="pet-tag-radio">
+              <input type="radio" name="pet-tag-payload" value="call" checked />
+              <span>
+                <strong>Tap to call (recommended)</strong>
+                <span class="pet-tag-radio-meta">tel: URI — same class of tag as https:// links; works on iPhone in airplane mode</span>
+              </span>
+            </label>
+            <label class="pet-tag-radio">
+              <input type="radio" name="pet-tag-payload" value="vcard" />
+              <span>
+                <strong>Contact card (vCard)</strong>
+                <span class="pet-tag-radio-meta">Android-friendly; iPhone usually skips MIME vCard unless using a dedicated reader app</span>
+              </span>
+            </label>
+          </fieldset>
           <h2 class="pet-tag-preview-heading" id="pet-tag-preview-heading">What finders see</h2>
           <article class="pet-tag-preview" aria-live="polite">
             <p class="pet-tag-preview-name" id="pet-tag-preview-title">Preview</p>
@@ -184,6 +202,7 @@ const description =
             <p class="pet-tag-preview-line" id="pet-tag-preview-address" hidden></p>
             <p class="pet-tag-preview-foot" id="pet-tag-preview-business" hidden></p>
             <p class="pet-tag-preview-plain" id="pet-tag-preview-plain" hidden></p>
+            <p class="pet-tag-preview-tap" id="pet-tag-preview-tap" hidden></p>
           </article>
 
           <div class="pet-tag-actions">
@@ -198,8 +217,10 @@ const description =
             </BrandBtn>
           </div>
           <p class="pet-tag-write-hint" id="pet-tag-write-hint" hidden>
-            <strong>iPhone:</strong> Download .vcf → open <strong>NFC Tools</strong> → Write → Add record →
-            File → pick the .vcf. Do not add a URL record.
+            <strong>iPhone (NFC Tools):</strong> Write → Add record → <strong>URL/URI</strong> →
+            <code>tel:+1XXXXXXXXXX</code> (include country code) → Add record → <strong>Text</strong> → lost-pet
+            message → Write. Avoid “File → vCard” if you want the same behavior as a URL tag.
+            <strong>Download .vcf</strong> is for saving a contact manually, not for iPhone background reads.
           </p>
           <p class="pet-tag-write-hint pet-tag-write-hint--android" id="pet-tag-android-hint" hidden>
             Hold a blank NTAG213/215/216 sticker to the back of the phone when prompted. Allow NFC if Chrome asks.
@@ -300,6 +321,47 @@ const description =
   .pet-tag-platform a {
     color: var(--brand-primary, #111);
     font-weight: 600;
+  }
+
+  .pet-tag-platform code {
+    font-size: 0.85em;
+  }
+
+  .pet-tag-payload-fieldset {
+    margin-bottom: 4px;
+  }
+
+  .pet-tag-radio {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    margin: 10px 0 0;
+    cursor: pointer;
+    font-size: 0.92rem;
+    line-height: 1.4;
+  }
+
+  .pet-tag-radio input {
+    margin-top: 0.25rem;
+    flex-shrink: 0;
+  }
+
+  .pet-tag-radio-meta {
+    display: block;
+    margin-top: 2px;
+    font-size: 0.82rem;
+    font-weight: 400;
+    color: var(--site-fg-muted, #525252);
+  }
+
+  .pet-tag-preview-tap {
+    margin: 12px 0 0;
+    padding-top: 10px;
+    border-top: 1px dashed color-mix(in srgb, var(--site-fg, #171717) 18%, transparent);
+    font-size: 0.85rem;
+    font-weight: 600;
+    line-height: 1.4;
+    color: var(--brand-primary, #111);
   }
 
   .pet-tag-grid {
