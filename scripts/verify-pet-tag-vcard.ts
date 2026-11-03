@@ -72,6 +72,8 @@ const client = readFileSync('src/client/petTagGenerator.ts', 'utf8');
 const mw = readFileSync('src/middleware.ts', 'utf8');
 assert.match(page, /initPetTagGenerator/);
 assert.match(client, /text\/vcard/);
+assert.match(client, /webNfcCanWrite/);
+assert.match(client, /overwrite: true/);
 assert.match(mw, /\/pet-tag"/);
 
 console.log('ok — pet tag vCard builder (offline NFC, no URL on tag)');

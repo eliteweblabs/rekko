@@ -17,11 +17,16 @@ type NdefRecordInit = {
 
 type NdefWriteOptions = {
   records: NdefRecordInit[];
+  overwrite?: boolean;
 };
 
 type NdefWriterLike = {
-  write: (options: NdefWriteOptions) => Promise<void>;
+  write: (message: NdefWriteOptions | string, options?: { overwrite?: boolean }) => Promise<void>;
 };
+
+function encodeUtf8(text: string): Uint8Array {
+  return new TextEncoder().encode(text);
+}
 
 function $(id: string): HTMLElement | null {
   return document.getElementById(id);
@@ -72,13 +77,9 @@ function setPreviewText(id: string, text: string, hiddenWhenEmpty = true): void 
 }
 
 function setActionDisabled(disabled: boolean): void {
-  for (const id of ['pet-tag-download', 'pet-tag-copy']) {
+  for (const id of ['pet-tag-download', 'pet-tag-copy', 'pet-tag-write']) {
     const el = $(id);
     if (el instanceof HTMLButtonElement) el.disabled = disabled;
-  }
-  const writeBtn = $('pet-tag-write');
-  if (writeBtn instanceof HTMLButtonElement) {
-    writeBtn.disabled = disabled || !webNfcSupported();
   }
 }
 
@@ -158,27 +159,37 @@ function downloadVcf(fields: PetTagFields, vcard: string): void {
   URL.revokeObjectURL(url);
 }
 
-function webNfcSupported(): boolean {
+/** Chrome Android over HTTPS — not available on iPhone Safari or most desktop browsers. */
+function webNfcCanWrite(): boolean {
+  if (typeof window === 'undefined') return false;
+  if (!window.isSecureContext) return false;
   return (
     typeof (globalThis as typeof globalThis & { NDEFWriter?: unknown }).NDEFWriter !== 'undefined'
   );
 }
 
+function showWriteHint(): void {
+  const hint = $('pet-tag-write-hint');
+  if (hint) {
+    hint.hidden = false;
+    hint.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+}
+
 async function writeNfcTag(fields: PetTagFields): Promise<void> {
-  if (!webNfcSupported()) return;
   const vcard = buildPetTagVCard(fields);
   const plain = petTagPlainTextSummary(fields);
   const records: NdefRecordInit[] = [
-    { recordType: 'mime', mediaType: 'text/vcard', data: vcard },
+    { recordType: 'mime', mediaType: 'text/vcard', data: encodeUtf8(vcard) },
   ];
   if (plain) {
     records.push({ recordType: 'text', data: plain, lang: 'en' });
   }
   const NdefWriterCtor = (globalThis as typeof globalThis & { NDEFWriter?: new () => NdefWriterLike })
     .NDEFWriter;
-  if (!NdefWriterCtor) return;
+  if (!NdefWriterCtor) throw new Error('Web NFC is not available on this device.');
   const writer = new NdefWriterCtor();
-  await writer.write({ records });
+  await writer.write({ records }, { overwrite: true });
 }
 
 function showStatus(message: string, isError = false): void {
@@ -194,12 +205,13 @@ export function initPetTagGenerator(): void {
   if (!form) return;
 
   const writeHint = $('pet-tag-write-hint');
-  if (writeHint) {
-    writeHint.hidden = webNfcSupported();
+  if (writeHint && !webNfcCanWrite()) {
+    writeHint.hidden = false;
   }
+
   const writeBtn = $('pet-tag-write');
-  if (writeBtn instanceof HTMLButtonElement && !webNfcSupported()) {
-    writeBtn.disabled = true;
+  if (writeBtn instanceof HTMLButtonElement && !webNfcCanWrite()) {
+    writeBtn.setAttribute('aria-description', 'Uses NFC Tools on iPhone — see steps below');
   }
 
   let debounce: ReturnType<typeof setTimeout> | undefined;
@@ -231,14 +243,29 @@ export function initPetTagGenerator(): void {
 
   writeBtn?.addEventListener('click', async () => {
     const fields = readFields();
-    if (!petTagHasContent(fields)) return;
-    showStatus('Hold the tag near your phone…');
+    if (!petTagHasContent(fields)) {
+      showStatus('Add at least one field before writing a tag.', true);
+      return;
+    }
+    if (!webNfcCanWrite()) {
+      downloadVcf(fields, buildPetTagVCard(fields));
+      showWriteHint();
+      showStatus(
+        'Web NFC needs Chrome on Android. Downloaded .vcf — follow the steps below to write with NFC Tools.',
+      );
+      return;
+    }
+    showStatus('Hold the blank tag against the back of your phone…');
     try {
       await writeNfcTag(fields);
       showStatus('Tag written. Test in airplane mode.');
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Write failed';
-      showStatus(msg, true);
+      const hint =
+        msg.includes('Failed to write') || msg.includes('NotAllowedError')
+          ? ' Allow NFC if prompted, use a blank NTAG chip, and keep the tag still.'
+          : '';
+      showStatus(`${msg}${hint}`, true);
     }
   });
 }
