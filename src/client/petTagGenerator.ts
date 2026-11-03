@@ -168,14 +168,6 @@ function webNfcCanWrite(): boolean {
   );
 }
 
-function showWriteHint(): void {
-  const hint = $('pet-tag-write-hint');
-  if (hint) {
-    hint.hidden = false;
-    hint.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }
-}
-
 async function writeNfcTag(fields: PetTagFields): Promise<void> {
   const vcard = buildPetTagVCard(fields);
   const plain = petTagPlainTextSummary(fields);
@@ -204,14 +196,24 @@ export function initPetTagGenerator(): void {
   const form = $('pet-tag-form');
   if (!form) return;
 
+  const canWriteNfc = webNfcCanWrite();
   const writeHint = $('pet-tag-write-hint');
-  if (writeHint && !webNfcCanWrite()) {
-    writeHint.hidden = false;
-  }
-
+  const androidHint = $('pet-tag-android-hint');
   const writeBtn = $('pet-tag-write');
-  if (writeBtn instanceof HTMLButtonElement && !webNfcCanWrite()) {
-    writeBtn.setAttribute('aria-description', 'Uses NFC Tools on iPhone — see steps below');
+  const platformNote = $('pet-tag-platform-note');
+
+  if (canWriteNfc) {
+    if (writeBtn instanceof HTMLButtonElement) writeBtn.hidden = false;
+    if (androidHint) androidHint.hidden = false;
+    if (writeHint) writeHint.hidden = true;
+    if (platformNote) {
+      platformNote.textContent =
+        'This device can write tags in Chrome. Tap Write to NFC tag and hold a blank NTAG chip to your phone.';
+    }
+  } else {
+    if (writeBtn) writeBtn.hidden = true;
+    if (writeHint) writeHint.hidden = false;
+    if (androidHint) androidHint.hidden = true;
   }
 
   let debounce: ReturnType<typeof setTimeout> | undefined;
@@ -248,11 +250,6 @@ export function initPetTagGenerator(): void {
       return;
     }
     if (!webNfcCanWrite()) {
-      downloadVcf(fields, buildPetTagVCard(fields));
-      showWriteHint();
-      showStatus(
-        'Web NFC needs Chrome on Android. Downloaded .vcf — follow the steps below to write with NFC Tools.',
-      );
       return;
     }
     showStatus('Hold the blank tag against the back of your phone…');

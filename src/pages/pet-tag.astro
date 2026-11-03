@@ -83,6 +83,11 @@ const description =
           Fill in any fields — all optional. The chip stores a <strong>contact card</strong>, not a
           website link, so finders can call you with <strong>no internet</strong>.
         </p>
+        <p class="pet-tag-platform" id="pet-tag-platform-note">
+          Programming the chip needs either <strong>Chrome on Android</strong> (Write to NFC tag below)
+          or the free <a href="https://apps.apple.com/app/nfc-tools/id1252974019" rel="noopener noreferrer" target="_blank">NFC Tools</a> app on iPhone after you <strong>Download .vcf</strong>.
+          A web page cannot write NFC from a link alone — Safari and desktop browsers do not allow it.
+        </p>
       </header>
 
       <div class="pet-tag-grid">
@@ -188,14 +193,16 @@ const description =
             <BrandBtn variant="glass" type="button" id="pet-tag-copy" class="pet-tag-action" disabled>
               Copy vCard
             </BrandBtn>
-            <BrandBtn variant="solid" type="button" id="pet-tag-write" class="pet-tag-action" disabled>
-              Write to tag
+            <BrandBtn variant="solid" type="button" id="pet-tag-write" class="pet-tag-action" disabled hidden>
+              Write to NFC tag
             </BrandBtn>
           </div>
           <p class="pet-tag-write-hint" id="pet-tag-write-hint" hidden>
-            <strong>iPhone / desktop:</strong> tap Write to tag to download the .vcf, then open
-            <strong>NFC Tools</strong> → Write → Add a record → File → vCard. Do not add a URL record.
-            <strong>Android:</strong> use Chrome, tap Write, and hold a blank NTAG chip to the phone.
+            <strong>iPhone:</strong> Download .vcf → open <strong>NFC Tools</strong> → Write → Add record →
+            File → pick the .vcf. Do not add a URL record.
+          </p>
+          <p class="pet-tag-write-hint pet-tag-write-hint--android" id="pet-tag-android-hint" hidden>
+            Hold a blank NTAG213/215/216 sticker to the back of the phone when prompted. Allow NFC if Chrome asks.
           </p>
           <p class="pet-tag-status" id="pet-tag-status" hidden></p>
         </section>
@@ -280,6 +287,19 @@ const description =
     font-size: 0.95rem;
     line-height: 1.5;
     color: var(--site-fg-muted, #525252);
+  }
+
+  .pet-tag-platform {
+    margin: 12px auto 0;
+    max-width: 36rem;
+    font-size: 0.88rem;
+    line-height: 1.45;
+    color: var(--site-fg-muted, #525252);
+  }
+
+  .pet-tag-platform a {
+    color: var(--brand-primary, #111);
+    font-weight: 600;
   }
 
   .pet-tag-grid {
