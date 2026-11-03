@@ -69,9 +69,10 @@ POST /api/email/inbound → Claude triage → contact-api → job append → Pos
 ## Setup (one-time)
 
 1. **Resend:** Enable receiving on `inbound.reave.app` (MX). Webhook `email.received` → `https://reave.app/api/email/inbound`.
-2. **Copy mail in:** Proton filter or Gmail forward **BCC** to `inbox@inbound.reave.app` (or your Resend receiving address).
-3. **Railway env:** `RESEND_*`, `ANTHROPIC_API_KEY`, `DATABASE_URL`, `CONTACT_API_BASE_URL`, `VAPID_*`.
-4. **Phone:** Open `/admin?tab=email` → Add to Home Screen → tap 🔔.
+2. **Legacy `@reave.app`:** Apex mail is **Cloudflare Email Routing catch-all → `reave@rekko.studio`** (not Proton). Wire with `npm run wire:reave-app-mail-forward` (`CLOUDFLARE_API_TOKEN`).
+3. **Copy mail in:** Filter or BCC from the human mailbox (`reave@rekko.studio` or Gmail) to `inbox@inbound.rekko.studio` / `inbox@inbound.reave.app` for admin triage.
+4. **Railway env:** `RESEND_*`, `ANTHROPIC_API_KEY`, `DATABASE_URL`, `CONTACT_API_BASE_URL`, `VAPID_*`.
+5. **Phone:** Open `/admin?tab=email` → Add to Home Screen → tap 🔔.
 
 ## Security
 
