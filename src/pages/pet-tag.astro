@@ -1,0 +1,462 @@
+---
+/**
+ * Offline pet NFC tag generator — vCard payload, no URI on the tag.
+ */
+import BrandBtn from '../components/ui/BrandBtn.astro';
+import BrandFontHead from '../components/BrandFontHead.astro';
+import BrandIconLockup from '../components/BrandIconLockup.astro';
+import Favicon from '../components/Favicon.astro';
+import PwaDocumentTitle from '../components/PwaDocumentTitle.astro';
+import SiteBackground from '../components/SiteBackground.astro';
+import ThemeInit from '../components/ThemeInit.astro';
+import ViewportMeta from '../components/ViewportMeta.astro';
+import PlausibleScript from '../components/PlausibleScript.astro';
+import { companyHtmlStyleAttr } from '../lib/companyBrandColors';
+import { getCompanyConfig } from '../lib/companyConfig';
+import { formatHtmlPageTitle } from '../lib/pageTitle';
+import { petTagFieldsFromSearchParams } from '../lib/petTagVcard';
+import { requestOrigin } from '../lib/requestOrigin';
+import '../styles/brand.css';
+
+export const prerender = false;
+
+const company = await getCompanyConfig(Astro.request);
+const companyName = company.name?.trim() || 'Contact';
+const queryFields = petTagFieldsFromSearchParams(Astro.url.searchParams);
+
+const defaultBusinessName = companyName;
+const defaultBusinessPhone = company.supportPhone?.trim() || '';
+
+function normalizeWebsiteUrl(raw: string): string {
+  const t = raw.trim();
+  if (!t) return '';
+  if (/^https?:\/\//i.test(t)) return t.replace(/\/+$/, '') || t;
+  return `https://${t.replace(/^\/\//, '').replace(/\/+$/, '')}`;
+}
+
+const websiteRaw = company.domain?.trim() || '';
+const websiteHref = websiteRaw ? normalizeWebsiteUrl(websiteRaw) : '';
+const websiteLabel = websiteHref ? websiteHref.replace(/^https?:\/\//i, '').replace(/\/+$/, '') : '';
+
+const pageTitle = formatHtmlPageTitle({
+  siteName: 'Pet NFC tag',
+  tagline: companyName,
+});
+const pwaTitle = 'Pet tag';
+const origin = requestOrigin(Astro.request);
+const canonical = `${origin.replace(/\/+$/, '')}/pet-tag`;
+const description =
+  'Build an offline NFC pet tag (vCard). No website URL on the chip — works in airplane mode.';
+---
+
+<!doctype html>
+<html
+  lang="en"
+  style={companyHtmlStyleAttr(
+    company.fonts,
+    company.brandPrimary,
+    company.brandSecondary,
+    company.headerLogoSize,
+  )}
+>
+  <head>
+    <ThemeInit />
+    <meta charset="UTF-8" />
+    <ViewportMeta />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#111111" media="(prefers-color-scheme: dark)" />
+    <title>{pageTitle}</title>
+    <PwaDocumentTitle pwaTitle={pwaTitle} />
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <Favicon />
+    <BrandFontHead fonts={company.fonts} />
+    <PlausibleScript />
+  </head>
+  <body class="pet-tag-body">
+    <SiteBackground />
+    <main class="pet-tag-shell">
+      <header class="pet-tag-brand">
+        <BrandIconLockup company={company} variant="card" idPrefix="pet-tag-mark" />
+        <h1 class="pet-tag-title">Pet NFC tag</h1>
+        <p class="pet-tag-lede">
+          Fill in any fields — all optional. The chip stores a <strong>contact card</strong>, not a
+          website link, so finders can call you with <strong>no internet</strong>.
+        </p>
+      </header>
+
+      <div class="pet-tag-grid">
+        <form class="pet-tag-form" id="pet-tag-form" autocomplete="on">
+          <fieldset class="pet-tag-fieldset">
+            <legend>Pet &amp; owner</legend>
+            <label class="pet-tag-label" for="pet-tag-dog">Dog name</label>
+            <input
+              class="pet-tag-input"
+              id="pet-tag-dog"
+              name="dog"
+              type="text"
+              placeholder="e.g. Maple"
+              value={queryFields.dogName ?? ''}
+            />
+            <label class="pet-tag-label" for="pet-tag-owner">Owner name</label>
+            <input
+              class="pet-tag-input"
+              id="pet-tag-owner"
+              name="owner"
+              type="text"
+              placeholder="e.g. Jane Doe"
+              value={queryFields.ownerName ?? ''}
+            />
+            <label class="pet-tag-label" for="pet-tag-phone">Phone</label>
+            <input
+              class="pet-tag-input"
+              id="pet-tag-phone"
+              name="phone"
+              type="tel"
+              inputmode="tel"
+              autocomplete="tel"
+              placeholder="Primary number"
+              value={queryFields.phone ?? ''}
+            />
+            <label class="pet-tag-label" for="pet-tag-alt">Alternate phone</label>
+            <input
+              class="pet-tag-input"
+              id="pet-tag-alt"
+              name="alt"
+              type="tel"
+              inputmode="tel"
+              autocomplete="tel"
+              placeholder="Optional second number"
+              value={queryFields.altPhone ?? ''}
+            />
+            <label class="pet-tag-label" for="pet-tag-address">Address</label>
+            <textarea
+              class="pet-tag-input pet-tag-textarea"
+              id="pet-tag-address"
+              name="address"
+              rows="2"
+              placeholder="Home address (optional)"
+            >{queryFields.address ?? ''}</textarea>
+          </fieldset>
+
+          <fieldset class="pet-tag-fieldset">
+            <legend>On the tag (your business)</legend>
+            <p class="pet-tag-fieldset-note">Name and phone are saved on the tag. Your website link stays on this page only.</p>
+            <label class="pet-tag-label" for="pet-tag-business-name">Business name</label>
+            <input
+              class="pet-tag-input"
+              id="pet-tag-business-name"
+              name="businessName"
+              type="text"
+              value={defaultBusinessName}
+            />
+            <label class="pet-tag-label" for="pet-tag-business-phone">Business phone</label>
+            <input
+              class="pet-tag-input"
+              id="pet-tag-business-phone"
+              name="businessPhone"
+              type="tel"
+              inputmode="tel"
+              value={defaultBusinessPhone}
+            />
+          </fieldset>
+        </form>
+
+        <section class="pet-tag-preview-wrap" aria-labelledby="pet-tag-preview-heading">
+          <h2 class="pet-tag-preview-heading" id="pet-tag-preview-heading">What finders see</h2>
+          <article class="pet-tag-preview" aria-live="polite">
+            <p class="pet-tag-preview-name" id="pet-tag-preview-title">Preview</p>
+            <p class="pet-tag-preview-line" id="pet-tag-preview-dog" hidden></p>
+            <p class="pet-tag-preview-line" id="pet-tag-preview-owner" hidden></p>
+            <p class="pet-tag-preview-row" id="pet-tag-preview-phone-row" hidden>
+              <span class="pet-tag-preview-k">Call</span>
+              <a class="pet-tag-preview-link" id="pet-tag-preview-phone" href="#">—</a>
+            </p>
+            <p class="pet-tag-preview-row" id="pet-tag-preview-alt-row" hidden>
+              <span class="pet-tag-preview-k">Alt</span>
+              <a class="pet-tag-preview-link" id="pet-tag-preview-alt" href="#">—</a>
+            </p>
+            <p class="pet-tag-preview-line" id="pet-tag-preview-address" hidden></p>
+            <p class="pet-tag-preview-foot" id="pet-tag-preview-business" hidden></p>
+            <p class="pet-tag-preview-plain" id="pet-tag-preview-plain" hidden></p>
+          </article>
+
+          <div class="pet-tag-actions">
+            <BrandBtn variant="filled" type="button" id="pet-tag-download" class="pet-tag-action" disabled>
+              Download .vcf
+            </BrandBtn>
+            <BrandBtn variant="glass" type="button" id="pet-tag-copy" class="pet-tag-action" disabled>
+              Copy vCard
+            </BrandBtn>
+            <BrandBtn variant="solid" type="button" id="pet-tag-write" class="pet-tag-action" disabled>
+              Write to tag
+            </BrandBtn>
+          </div>
+          <p class="pet-tag-write-hint" id="pet-tag-write-hint" hidden>
+            iPhone: download the .vcf, then use <strong>NFC Tools</strong> → Write → Add a record →
+            File → vCard. Do not add a URL record.
+          </p>
+          <p class="pet-tag-status" id="pet-tag-status" hidden></p>
+        </section>
+      </div>
+
+      {
+        websiteHref && (
+          <footer class="pet-tag-footer">
+            <BrandBtn variant="glass" href={websiteHref} target="_blank" rel="noopener noreferrer">
+              Visit {websiteLabel}
+            </BrandBtn>
+          </footer>
+        )
+      }
+    </main>
+    <script type="module">
+      import { initPetTagGenerator } from '../client/petTagGenerator.ts';
+      initPetTagGenerator();
+    </script>
+  </body>
+</html>
+
+<style is:global>
+  html:has(.pet-tag-body) {
+    min-height: 100%;
+    background-color: var(--site-canvas, #fff);
+  }
+
+  html:has(.pet-tag-body),
+  html:has(.pet-tag-body) body {
+    margin: 0;
+    width: 100%;
+    color-scheme: light dark;
+  }
+</style>
+
+<style>
+  .pet-tag-body {
+    margin: 0;
+    min-height: 100dvh;
+    font-family: var(--font-content);
+    color: var(--site-fg, #171717);
+    background-color: var(--site-canvas, #fff);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .pet-tag-body :global(.site-bg-atmosphere) {
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+  }
+
+  .pet-tag-shell {
+    position: relative;
+    z-index: 1;
+    box-sizing: border-box;
+    max-width: 960px;
+    margin: 0 auto;
+    padding:
+      max(20px, env(safe-area-inset-top, 0px))
+      max(20px, env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px))
+      max(28px, env(safe-area-inset-bottom, 0px));
+  }
+
+  .pet-tag-brand {
+    text-align: center;
+    margin-bottom: 28px;
+  }
+
+  .pet-tag-title {
+    margin: 16px 0 8px;
+    font-family: var(--font-primary);
+    font-size: clamp(1.35rem, 4vw, 1.75rem);
+    font-weight: 650;
+    letter-spacing: -0.03em;
+  }
+
+  .pet-tag-lede {
+    margin: 0 auto;
+    max-width: 36rem;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    color: var(--site-fg-muted, #525252);
+  }
+
+  .pet-tag-grid {
+    display: grid;
+    gap: 28px;
+  }
+
+  @media (min-width: 820px) {
+    .pet-tag-grid {
+      grid-template-columns: 1fr 1fr;
+      align-items: start;
+    }
+  }
+
+  .pet-tag-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .pet-tag-fieldset {
+    margin: 0;
+    padding: 16px;
+    border: 1px solid color-mix(in srgb, var(--site-fg, #171717) 12%, transparent);
+    border-radius: 16px;
+    background: color-mix(in srgb, var(--site-canvas, #fff) 88%, var(--site-fg, #171717) 4%);
+  }
+
+  .pet-tag-fieldset legend {
+    padding: 0 6px;
+    font-family: var(--font-primary);
+    font-weight: 600;
+    font-size: 0.9rem;
+  }
+
+  .pet-tag-fieldset-note {
+    margin: 0 0 12px;
+    font-size: 0.82rem;
+    line-height: 1.4;
+    color: var(--site-fg-muted, #525252);
+  }
+
+  .pet-tag-label {
+    display: block;
+    margin: 10px 0 4px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--site-fg-muted, #525252);
+  }
+
+  .pet-tag-label:first-of-type {
+    margin-top: 0;
+  }
+
+  .pet-tag-input {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px 12px;
+    font: inherit;
+    font-size: 1rem;
+    border-radius: 10px;
+    border: 1px solid color-mix(in srgb, var(--site-fg, #171717) 18%, transparent);
+    background: var(--site-canvas, #fff);
+    color: inherit;
+  }
+
+  .pet-tag-textarea {
+    resize: vertical;
+    min-height: 3.5rem;
+  }
+
+  .pet-tag-preview-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .pet-tag-preview-heading {
+    margin: 0;
+    font-family: var(--font-primary);
+    font-size: 1rem;
+    font-weight: 600;
+  }
+
+  .pet-tag-preview {
+    padding: 18px 16px;
+    border-radius: 16px;
+    background: var(--brand-glass-bg);
+    border: 1px solid var(--brand-glass-border-color);
+    backdrop-filter: var(--brand-glass-blur);
+    -webkit-backdrop-filter: var(--brand-glass-blur);
+  }
+
+  .pet-tag-preview-name {
+    margin: 0 0 10px;
+    font-family: var(--font-primary);
+    font-size: 1.25rem;
+    font-weight: 650;
+    letter-spacing: -0.02em;
+  }
+
+  .pet-tag-preview-line,
+  .pet-tag-preview-row,
+  .pet-tag-preview-foot,
+  .pet-tag-preview-plain {
+    margin: 0 0 8px;
+    font-size: 0.92rem;
+    line-height: 1.4;
+  }
+
+  .pet-tag-preview-row {
+    display: flex;
+    gap: 10px;
+    align-items: baseline;
+  }
+
+  .pet-tag-preview-k {
+    flex-shrink: 0;
+    width: 2.5rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--site-fg-muted, #525252);
+  }
+
+  .pet-tag-preview-link {
+    color: var(--brand-primary, #111);
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .pet-tag-preview-foot {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid color-mix(in srgb, var(--site-fg, #171717) 10%, transparent);
+    font-size: 0.85rem;
+    color: var(--site-fg-muted, #525252);
+  }
+
+  .pet-tag-preview-plain {
+    font-size: 0.8rem;
+    color: var(--site-fg-muted, #525252);
+  }
+
+  .pet-tag-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .pet-tag-action {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .pet-tag-write-hint {
+    margin: 0;
+    font-size: 0.82rem;
+    line-height: 1.45;
+    color: var(--site-fg-muted, #525252);
+  }
+
+  .pet-tag-status {
+    margin: 0;
+    font-size: 0.88rem;
+    line-height: 1.4;
+    color: var(--site-fg-muted, #525252);
+  }
+
+  .pet-tag-status--err {
+    color: #b91c1c;
+  }
+
+  .pet-tag-footer {
+    margin-top: 32px;
+    display: flex;
+    justify-content: center;
+  }
+</style>

@@ -357,6 +357,7 @@ const appHandler = async (
       !normalizedPath.startsWith("/__clerk") &&
       !normalizedPath.startsWith("/video/") &&
       normalizedPath !== "/card" &&
+      normalizedPath !== "/pet-tag" &&
       normalizedPath !== "/nfc" &&
       normalizedPath !== "/contact.vcf" &&
       normalizedPath !== "/dealer-map" &&

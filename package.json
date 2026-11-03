@@ -80,6 +80,7 @@
     "check:homepage-perf": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-homepage-perf.ts",
     "check:card-login": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-card-phone-login.ts",
     "check:card-subject": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-card-subject.ts",
+    "check:pet-tag": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-pet-tag-vcard.ts",
     "check:visits": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-visit-planner.ts",
     "check:logo-contrast": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-logo-contrast-adapt.ts",
     "check:replaced-logo-invert": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-replaced-app-logo-invert.ts",
