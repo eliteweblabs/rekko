@@ -22116,7 +22116,6 @@ function renderEmailPane() {
           : '') +
       `</div>`;
   }
-  detailHtml += emailDetailBodySectionHtml(ev);
   if (isMeetingPendingConfirm(ev)) {
     detailHtml +=
       `<div class="em-schedule-actions em-schedule-actions-confirm">` +
@@ -22206,6 +22205,7 @@ function renderEmailPane() {
         `</ul>` +
       `</div>`;
   }
+  detailHtml += emailDetailBodySectionHtml(ev);
   detail.innerHTML = detailHtml;
   bindEmailAttachmentLinks(detail);
   mountEmailThreadNav(detail);
