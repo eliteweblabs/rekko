@@ -14757,11 +14757,7 @@ function emailDetailBodySectionHtml(ev) {
   if (bodyHtmlSource) {
     return (
       `<div class="em-detail-body-block em-detail-body-html">` +
-        `<iframe class="em-detail-body-frame" sandbox="${
-          isEmailLabModeFor(ev)
-            ? 'allow-same-origin allow-popups allow-popups-to-escape-sandbox'
-            : 'allow-popups allow-popups-to-escape-sandbox'
-        }" title="Email message"></iframe>` +
+        `<iframe class="em-detail-body-frame" scrolling="no" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" title="Email message"></iframe>` +
       `</div>`
     );
   }
@@ -14788,10 +14784,72 @@ function emailDetailBodySectionHtml(ev) {
   return `<div class="em-detail-body-block"><div class="em-detail-body em-detail-body-empty">(no body text)</div></div>`;
 }
 
+function emailDetailUsesMobileBodyLayout() {
+  return window.matchMedia('(max-width: 639px)').matches;
+}
+
+function emailDetailFrameContentHeight(doc) {
+  const root = doc.documentElement;
+  const body = doc.body;
+  if (!body) return 0;
+  return Math.max(
+    body.scrollHeight,
+    body.offsetHeight,
+    root?.scrollHeight ?? 0,
+    root?.offsetHeight ?? 0,
+  );
+}
+
+function fitEmailDetailBodyFrame(frame) {
+  if (!(frame instanceof HTMLIFrameElement)) return;
+  if (!emailDetailUsesMobileBodyLayout()) {
+    frame.style.height = '';
+    return;
+  }
+  try {
+    const doc = frame.contentDocument;
+    if (!doc || iframeDocLooksEmpty(doc)) return;
+    const height = emailDetailFrameContentHeight(doc);
+    if (height > 0) frame.style.height = `${height}px`;
+    doc.querySelectorAll('img').forEach((img) => {
+      if (img.complete) return;
+      img.addEventListener('load', () => fitEmailDetailBodyFrame(frame), { once: true });
+      img.addEventListener('error', () => fitEmailDetailBodyFrame(frame), { once: true });
+    });
+  } catch {
+    /* sandbox */
+  }
+}
+
+function mountEmailDetailBodyFrame(frame) {
+  if (!(frame instanceof HTMLIFrameElement)) return;
+  const scheduleFit = () => {
+    fitEmailDetailBodyFrame(frame);
+    window.setTimeout(() => fitEmailDetailBodyFrame(frame), 0);
+    window.setTimeout(() => fitEmailDetailBodyFrame(frame), 200);
+    window.setTimeout(() => fitEmailDetailBodyFrame(frame), 600);
+  };
+  if (frame.dataset.emailBodyFrameBound === '1') {
+    scheduleFit();
+    return;
+  }
+  frame.dataset.emailBodyFrameBound = '1';
+  frame.addEventListener('load', scheduleFit);
+  scheduleFit();
+}
+
+if (typeof window !== 'undefined' && !window.__emailDetailBodyFrameResizeBound) {
+  window.__emailDetailBodyFrameResizeBound = true;
+  window.addEventListener('resize', () => {
+    document.querySelectorAll('.em-detail-body-frame').forEach((frame) => fitEmailDetailBodyFrame(frame));
+  });
+}
+
 function mountEmailDetailBodySection(detail, ev) {
   const bodyFrame = detail.querySelector('.em-detail-body-frame');
   const bodyHtmlSource = String(ev.bodyHtml || '').trim();
   if (bodyFrame && bodyHtmlSource) {
+    mountEmailDetailBodyFrame(bodyFrame);
     bodyFrame.srcdoc = bodyHtmlSource;
     if (isEmailLabModeFor(ev)) mountEmailLabFrame(bodyFrame);
   }
@@ -21948,7 +22006,7 @@ function renderEmailPane() {
       (sentDeliveryDetailHtml(sent) ? `<div class="em-detail-meta">${sentDeliveryDetailHtml(sent)}</div>` : '');
     if (bodyHtmlSource) {
       detailHtml +=
-        `<div class="em-detail-body-html"><iframe class="em-detail-body-frame" sandbox="allow-popups allow-popups-to-escape-sandbox" title="Sent message"></iframe></div>`;
+        `<div class="em-detail-body-html"><iframe class="em-detail-body-frame" scrolling="no" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" title="Sent message"></iframe></div>`;
     } else if (plainBody) {
       detailHtml += `<div class="em-detail-body">${linkifyPlainText(plainBody)}</div>`;
     } else if (sent._bodyLoadFailed) {
@@ -21974,6 +22032,7 @@ function renderEmailPane() {
     }
     const bodyFrame = detail.querySelector('.em-detail-body-frame');
     if (bodyFrame && bodyHtmlSource) {
+      mountEmailDetailBodyFrame(bodyFrame);
       bodyFrame.srcdoc = bodyHtmlSource;
     }
     if (!sent._fullLoaded) {

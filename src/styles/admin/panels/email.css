@@ -2826,6 +2826,13 @@ html.reave-agent-asleep
   #email-panel.em-pane-active .em-btn-group-segment.em-project-trigger {
     padding: 0.42rem 0.55rem;
   }
+  /* Let HTML bodies grow with content; outer .em-detail scrolls (no nested iframe scroll). */
+  .em-detail-body-frame {
+    height: auto;
+    min-height: 8rem;
+    max-height: none;
+    overflow: hidden;
+  }
   #schedule-panel.de-pane-active .re-form-scroll {
     padding-top: 0.45rem;
   }
