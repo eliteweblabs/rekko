@@ -1,12 +1,19 @@
 ---
 /**
- * Mini light/dark switch — Astro portfolio ThemeToggle layout
- * (sun left, moon right, sliding thumb). Icons: IOS_ICONS.sun / IOS_ICONS.moon.
+ * Mini light/dark switch — sun/moon with sliding thumb.
+ * Horizontal: sun left, moon right. Vertical: sun top, moon bottom.
+ * Icons: IOS_ICONS.sun / IOS_ICONS.moon.
  */
+interface Props {
+  layout?: "horizontal" | "vertical";
+}
+
+const { layout = "horizontal" } = Astro.props;
+const isVertical = layout === "vertical";
 ---
 <button
   type="button"
-  class="theme-toggle"
+  class:list={["theme-toggle", isVertical && "theme-toggle--vertical"]}
   data-theme-toggle
   role="switch"
   aria-checked="false"
@@ -99,8 +106,25 @@
     background: var(--theme-toggle-thumb);
   }
 
-  html[data-theme="dark"] .theme-toggle-icon--sun::before {
+  html[data-theme="dark"] .theme-toggle:not(.theme-toggle--vertical) .theme-toggle-icon--sun::before {
     transform: translateX(var(--theme-toggle-size));
+  }
+
+  .theme-toggle--vertical {
+    flex-direction: column;
+    width: var(--theme-toggle-size);
+    height: calc(var(--theme-toggle-size) * 2);
+  }
+
+  html[data-theme="dark"] .theme-toggle--vertical .theme-toggle-icon--sun::before {
+    transform: translateY(var(--theme-toggle-size));
+  }
+
+  [data-account-menu] .theme-toggle--vertical {
+    --theme-toggle-size: 22px;
+    min-height: 44px;
+    height: 44px;
+    margin: 0;
   }
 
   html:not([data-theme="dark"]) .theme-toggle-icon--sun,
