@@ -3478,12 +3478,105 @@ function ChatMessages() {
   return <ThreadPrimitive.Messages components={THREAD_MESSAGE_COMPONENTS} />;
 }
 
+const CHAT_NEAR_BOTTOM_PX = 80;
+
 function storedMessagesKey(messages: readonly StoredChatMessage[]): string {
   if (!messages.length) return '';
   const last = messages[messages.length - 1];
   const contentLen =
     typeof last.content === 'string' ? last.content.length : JSON.stringify(last.content).length;
   return `${messages.length}:${last.role}:${last.created_at ?? ''}:${contentLen}`;
+}
+
+function chatThreadViewportEl(): HTMLElement | null {
+  if (typeof document === 'undefined') return null;
+  const el = document.querySelector('#ch-thread-root .aui-viewport, .aui-root--focus .aui-viewport');
+  return el instanceof HTMLElement ? el : null;
+}
+
+/** Keep the reader anchored when persisted history is re-imported into the runtime. */
+function preserveChatViewportScroll(mutate: () => void) {
+  const viewport = chatThreadViewportEl();
+  if (!viewport) {
+    mutate();
+    return;
+  }
+  const distanceFromBottom =
+    viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight;
+  const nearBottom = distanceFromBottom <= CHAT_NEAR_BOTTOM_PX;
+  mutate();
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      const maxScroll = Math.max(0, viewport.scrollHeight - viewport.clientHeight);
+      viewport.scrollTop = nearBottom ? maxScroll : Math.max(0, maxScroll - distanceFromBottom);
+    });
+  });
+}
+
+function runtimeMatchesPersistedMessages(
+  runtimeMessages: ReadonlyArray<{
+    role: string;
+    content?: ReadonlyArray<{ type: string; text?: string }>;
+  }>,
+  stored: readonly StoredChatMessage[],
+): boolean {
+  if (runtimeMessages.length !== stored.length) return false;
+  for (let i = 0; i < stored.length; i++) {
+    const rt = runtimeMessages[i];
+    const st = stored[i];
+    if (rt.role !== st.role) return false;
+    if (st.role === 'assistant') {
+      if (storedChatPlainText(st.content) !== messagePlainText(rt)) return false;
+      continue;
+    }
+    const { text, images, docs } = parseStoredChatContent(st.content);
+    if (userMessageBubbleText(text) !== messagePlainText(rt)) return false;
+    let imageParts = 0;
+    let fileParts = 0;
+    for (const part of rt.content ?? []) {
+      if (part.type === 'image') imageParts += 1;
+      if (part.type === 'file') fileParts += 1;
+    }
+    if (imageParts !== images.length || fileParts !== docs.length) return false;
+  }
+  return true;
+}
+
+/** Pause bottom-follow while the user reads older messages (fast flings included). */
+function useChatReadingHistory(active: boolean, viewportSelector: string) {
+  const [readingHistory, setReadingHistory] = useState(false);
+
+  useEffect(() => {
+    if (!active) {
+      setReadingHistory(false);
+      return;
+    }
+    const viewport = document.querySelector(viewportSelector);
+    if (!(viewport instanceof HTMLElement)) return;
+
+    const sync = () => {
+      const distance =
+        viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight;
+      const next = distance > CHAT_NEAR_BOTTOM_PX;
+      setReadingHistory((prev) => (prev === next ? prev : next));
+    };
+
+    const markReading = () => {
+      setReadingHistory((prev) => (prev ? prev : true));
+    };
+
+    viewport.addEventListener('scroll', sync, { passive: true });
+    viewport.addEventListener('wheel', markReading, { passive: true });
+    viewport.addEventListener('touchmove', markReading, { passive: true });
+    sync();
+    return () => {
+      viewport.removeEventListener('scroll', sync);
+      viewport.removeEventListener('wheel', markReading);
+      viewport.removeEventListener('touchmove', markReading);
+    };
+  }, [active, viewportSelector]);
+
+  return readingHistory;
 }
 
 /**
@@ -3500,6 +3593,9 @@ function PersistedMessageImporter({
   const runtime = useThreadRuntime();
   const composer = useComposerRuntime();
   const isRunning = useAuiState((s) => s.thread.isRunning);
+  const runtimeMessages = useAuiState((s) => s.thread.messages);
+  const runtimeMessagesRef = useRef(runtimeMessages);
+  runtimeMessagesRef.current = runtimeMessages;
   const lastUserText = useAuiState((s) => lastUserMessageText(s.thread.messages));
   const applied = useRef(0);
   const lastKey = useRef(storedMessagesKey(propsRef.current?.initialMessages ?? []));
@@ -3544,6 +3640,11 @@ function PersistedMessageImporter({
     const messages = propsRef.current?.initialMessages ?? [];
     const key = storedMessagesKey(messages);
     if (key === lastKey.current) return;
+    if (runtimeMatchesPersistedMessages(runtimeMessagesRef.current, messages)) {
+      lastKey.current = key;
+      composeTrace('react.import-skipped', { reason: 'runtime-matches', generation, key }, 'info');
+      return;
+    }
     lastKey.current = key;
     composeTrace(
       'react.thread-reset',
@@ -3551,7 +3652,9 @@ function PersistedMessageImporter({
       'warn',
       { snap: true },
     );
-    runtime.reset(messages.map(storedToThreadMessage));
+    preserveChatViewportScroll(() => {
+      runtime.reset(messages.map(storedToThreadMessage));
+    });
   }, [composer, generation, isRunning, lastUserText, propsRef, runtime]);
 
   return null;
@@ -3766,17 +3869,22 @@ function ChatFollowBottom({
     const viewport = anchorRef.current?.closest('.aui-viewport');
     if (!(viewport instanceof HTMLElement)) return;
 
-    const NEAR_BOTTOM_PX = 80;
     const onScroll = () => {
       const distance =
         viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight;
-      followPinnedRef.current = distance <= NEAR_BOTTOM_PX;
+      followPinnedRef.current = distance <= CHAT_NEAR_BOTTOM_PX;
     };
 
     viewport.addEventListener('scroll', onScroll, { passive: true });
+    viewport.addEventListener('wheel', onScroll, { passive: true });
+    viewport.addEventListener('touchmove', onScroll, { passive: true });
     onScroll();
-    return () => viewport.removeEventListener('scroll', onScroll);
-  }, [messageCount]);
+    return () => {
+      viewport.removeEventListener('scroll', onScroll);
+      viewport.removeEventListener('wheel', onScroll);
+      viewport.removeEventListener('touchmove', onScroll);
+    };
+  }, []);
 
   useLayoutEffect(() => {
     if (!followPinnedRef.current) return;
@@ -3855,6 +3963,7 @@ function AgentChatThreadBody({
   const focusComposerRef = useRef<(() => void) | null>(null);
   const autoFocusDoneRef = useRef(false);
   const isRunning = useAuiState((s) => s.thread.isRunning);
+  const hasMessages = useAuiState((s) => s.thread.messages.length > 0);
   const runtime = useThreadRuntime();
   const abandonStuckLocalRun = useCallback(() => {
     try {
@@ -3877,6 +3986,11 @@ function AgentChatThreadBody({
   );
   const showInThreadStatus = showThreadStatus && !recoveryText.trim() && !inFlightAssistantText.trim();
   const followActive = showThreadStatus && !lightboxOpen;
+  const isFocusVariant = propsRef.current?.variant === 'focus';
+  const readingHistory = useChatReadingHistory(
+    hasMessages,
+    isFocusVariant ? '.aui-root--focus .aui-viewport' : '#ch-thread-root .aui-viewport',
+  );
 
   const onFocusInputReady = useCallback(
     (focus: () => void) => {
@@ -3962,7 +4076,7 @@ function AgentChatThreadBody({
         <div className="aui-thread-body">
           <ThreadPrimitive.Viewport
             className="aui-viewport"
-            autoScroll={!lightboxOpen}
+            autoScroll={!lightboxOpen && !readingHistory}
             scrollToBottomOnRunStart={!lightboxOpen}
           >
             <div className="aui-thread-column">

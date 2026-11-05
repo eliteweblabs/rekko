@@ -197,7 +197,19 @@
             cache: 'no-store',
           });
           const data = await readApiJson(res);
-          state.messages = data.thread.messages || [];
+          const before = state.messages;
+          const nextMessages = data.thread.messages || [];
+          let unchanged = before.length === nextMessages.length;
+          if (unchanged) {
+            for (let i = 0; i < before.length; i++) {
+              if (before[i].role !== nextMessages[i].role || before[i].content !== nextMessages[i].content) {
+                unchanged = false;
+                break;
+              }
+            }
+          }
+          if (unchanged) return;
+          state.messages = nextMessages;
           state.linkedJobs = data.thread.linked_jobs || [];
           renderProjectChips();
           if (els.threadHost && window.__reaveAgentChat?.syncMessages) {
