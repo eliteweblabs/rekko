@@ -278,11 +278,15 @@ export async function GET(context: APIContext): Promise<Response> {
   const linked_jobs = await listJobsForItem('chat', id);
   let messages = thread.messages;
   let messages_truncated = false;
+  const wantFull = context.url.searchParams.get('full') === '1';
   // Deploy-failure repair threads can grow huge — cap what the browser renders.
+  // ?full=1 loads the entire thread when the user explicitly scrolls up (not on every poll).
   const cap =
-    isDeployFailureTitle(thread.title) || messages.length > CHAT_UI_MESSAGE_CAP * 2
-      ? CHAT_UI_MESSAGE_CAP
-      : null;
+    wantFull
+      ? null
+      : isDeployFailureTitle(thread.title) || messages.length > CHAT_UI_MESSAGE_CAP * 2
+        ? CHAT_UI_MESSAGE_CAP
+        : null;
   if (cap != null && messages.length > cap) {
     messages = messages.slice(-cap);
     messages_truncated = true;

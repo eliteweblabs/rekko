@@ -1850,6 +1850,10 @@ export function attachIosPullToRefresh(scrollElOrOpts, onRefresh) {
     'touchstart',
     (e) => {
       if (refreshing || scrollEl.scrollTop > 1 || e.touches.length !== 1) return;
+      const target = e.target;
+      if (target instanceof Element && target.closest('#ch-thread-root, .aui-viewport, .aui-root--focus')) {
+        return;
+      }
       tracking = true;
       axis = null;
       startX = e.touches[0].clientX;

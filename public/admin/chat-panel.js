@@ -49,6 +49,11 @@ import {
   composeTrace,
   registerComposeTraceShellState,
 } from './chat-compose-trace.js';
+import {
+  isChatViewportAtTop,
+  isChatViewportNearBottom,
+  shouldDeferChatThreadSync,
+} from './chat-viewport.js';
 import { postTitle, postLower } from './post-alias.js?v=20260805a';
 import { mountListFilterTabs } from './filter-tabs.js?v=20260813a';
 import { queueUndoableDelete, filterHiddenUntilCommit } from './shake-undo.js?v=20260824a';
@@ -1117,6 +1122,71 @@ function chatStoredMessagesEqual(a, b) {
   return true;
 }
 
+async function fetchChatThreadPayload(id, opts = {}) {
+  const url = new URL(`/api/chats/${encodeURIComponent(id)}`, window.location.origin);
+  if (opts.full) url.searchParams.set('full', '1');
+  const res = await fetch(url.toString(), { cache: 'no-store' });
+  return readApiJson(res);
+}
+
+function syncChatMessagesToReactIfReady() {
+  const host = getChatPanel()?.querySelector('#ch-thread-root');
+  if (host && window.__reaveAgentChat?.syncMessages) {
+    window.__reaveAgentChat.update?.(host, { historyTruncation: chatState.historyTruncation });
+    window.__reaveAgentChat.syncMessages(host, chatState.messages);
+    return true;
+  }
+  return false;
+}
+
+function flushDeferredChatRefresh() {
+  const pending = chatState.deferredThreadRefresh;
+  if (!pending || !chatState.activeId) return;
+  if (shouldDeferChatThreadSync()) return;
+  chatState.deferredThreadRefresh = null;
+  const beforeMessages = chatState.messages;
+  applyChatThreadPayload(pending);
+  if (chatStoredMessagesEqual(beforeMessages, chatState.messages)) return;
+  syncChatMessagesToReactIfReady();
+}
+
+async function loadFullChatHistory() {
+  if (!chatState.activeId || !chatState.historyTruncation || chatState.loadingFullHistory) return;
+  chatState.loadingFullHistory = true;
+  try {
+    const data = await fetchChatThreadPayload(chatState.activeId, { full: true });
+    applyChatThreadPayload(data);
+    syncChatMessagesToReactIfReady();
+    postChatTurnTelemetry(chatState.activeId, 'thread_full_history_loaded', {
+      count: chatState.messages.length,
+      messages_total: data.messages_total ?? chatState.messages.length,
+    });
+  } catch {
+    /* keep capped slice */
+  } finally {
+    chatState.loadingFullHistory = false;
+  }
+}
+
+function bindChatViewportHooks() {
+  if (chatState.viewportHooksBound) return;
+  chatState.viewportHooksBound = true;
+  document.addEventListener(
+    'scroll',
+    (e) => {
+      const t = e.target;
+      if (!(t instanceof HTMLElement)) return;
+      if (!t.matches('#ch-thread-root .aui-viewport, .aui-root--focus .aui-viewport')) return;
+      if (isChatViewportNearBottom()) flushDeferredChatRefresh();
+      if (isChatViewportAtTop() && chatState.historyTruncation) void loadFullChatHistory();
+    },
+    { capture: true, passive: true },
+  );
+  window.addEventListener('reave:chat-viewport-bottom', () => {
+    flushDeferredChatRefresh();
+  });
+}
+
 let chatState = {
   threads: [],
   search: '',
@@ -1140,6 +1210,10 @@ let chatState = {
   // Thread ids with an in-flight agent run (own tab + polled background runs
   // in other threads/tabs) — drives the sidebar "working…" spinner.
   runningIds: new Set(),
+  /** GET /api/chats/:id payload held while the user reads older messages (avoid runtime.reset). */
+  deferredThreadRefresh: null,
+  loadingFullHistory: false,
+  viewportHooksBound: false,
   /** Sidebar shown; pane waits on GET /api/chats/:id + React bundle. */
   paneLoading: false,
   /** Guard — only one automatic refetch when shell has title but no messages. */
@@ -1495,6 +1569,7 @@ function formatChatDate(iso) {
 
 async function loadChatsTabImpl(opts = {}) {
   const endLoad = traceStart('chat:load-tab', { keepSession: opts.keepSession === true });
+  bindChatViewportHooks();
   const root = getChatPanel();
   if (!root) {
     endLoad({ skipped: 'no-root' });
@@ -2332,6 +2407,18 @@ function mountChatThreadRoot(threadHost) {
           cache: 'no-store',
         });
         const data = await readApiJson(res);
+        if (shouldDeferChatThreadSync()) {
+          chatState.deferredThreadRefresh = data;
+          postChatTurnTelemetry(chatState.activeId, 'thread_refresh_deferred', {
+            reason: 'reading_history',
+            messageCount: data.thread?.messages?.length ?? 0,
+          });
+          composeTrace('shell.refresh-messages-deferred', { threadId: chatState.activeId }, 'info', {
+            snap: true,
+          });
+          return;
+        }
+        chatState.deferredThreadRefresh = null;
         const beforeMessages = chatState.messages;
         applyChatThreadPayload(data);
         if (chatStoredMessagesEqual(beforeMessages, chatState.messages)) {
@@ -2339,11 +2426,8 @@ function mountChatThreadRoot(threadHost) {
           return;
         }
         if (chatState.messages.length) chatState.refetchAttemptedId = null;
-        const host = getChatPanel()?.querySelector('#ch-thread-root');
-        if (host && window.__reaveAgentChat?.syncMessages) {
+        if (syncChatMessagesToReactIfReady()) {
           composeTrace('shell.sync-messages', { count: chatState.messages.length }, 'warn', { snap: true });
-          window.__reaveAgentChat.update?.(host, { historyTruncation: chatState.historyTruncation });
-          window.__reaveAgentChat.syncMessages(host, chatState.messages);
           return;
         }
         composeTrace('shell.refresh-messages-render-pane', {}, 'error', { snap: true });

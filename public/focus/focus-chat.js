@@ -9,7 +9,7 @@
   const companyName = root.dataset.companyName || 'Assistant';
   const initialChatId = (root.dataset.chatId || '').trim();
 
-  /** @type {{ activeId: string|null, messages: any[], linkedJobs: {slug:string,title:string}[], threads: any[], dialOpen: boolean, recentOpen: boolean, autoFocusComposer: boolean }} */
+  /** @type {{ activeId: string|null, messages: any[], linkedJobs: {slug:string,title:string}[], threads: any[], dialOpen: boolean, recentOpen: boolean, autoFocusComposer: boolean, deferredThreadRefresh: any|null }} */
   const state = {
     activeId: null,
     messages: [],
@@ -18,7 +18,36 @@
     dialOpen: false,
     recentOpen: false,
     autoFocusComposer: false,
+    deferredThreadRefresh: null,
   };
+
+  function shouldDeferFocusChatSync() {
+    try {
+      if (window.__reaveChatReadingHistory) return true;
+      const vp = document.querySelector('.aui-root--focus .aui-viewport');
+      if (!(vp instanceof HTMLElement)) return false;
+      const distance = vp.scrollHeight - vp.scrollTop - vp.clientHeight;
+      return distance > 80;
+    } catch {
+      return false;
+    }
+  }
+
+  function flushDeferredFocusRefresh() {
+    const pending = state.deferredThreadRefresh;
+    if (!pending || !state.activeId || shouldDeferFocusChatSync()) return;
+    state.deferredThreadRefresh = null;
+    state.messages = pending.thread?.messages || [];
+    state.linkedJobs = pending.thread?.linked_jobs || [];
+    renderProjectChips();
+    if (els.threadHost && window.__reaveAgentChat?.syncMessages) {
+      window.__reaveAgentChat.syncMessages(els.threadHost, state.messages);
+    }
+  }
+
+  window.addEventListener('reave:chat-viewport-bottom', () => {
+    flushDeferredFocusRefresh();
+  });
 
   /** Hold mobile keyboard across async create+mount (same idea as admin chat-panel). */
   let composerKeyboardBridge = null;
@@ -197,6 +226,11 @@
             cache: 'no-store',
           });
           const data = await readApiJson(res);
+          if (shouldDeferFocusChatSync()) {
+            state.deferredThreadRefresh = data;
+            return;
+          }
+          state.deferredThreadRefresh = null;
           const before = state.messages;
           const nextMessages = data.thread.messages || [];
           let unchanged = before.length === nextMessages.length;

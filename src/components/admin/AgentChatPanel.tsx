@@ -3018,8 +3018,8 @@ function ChatHistoryTruncationBanner({ info }: { info: ChatHistoryTruncation | n
   return (
     <div className="aui-chat-notice aui-chat-notice--info" role="status">
       <p>
-        Showing the latest {info.messagesShown} of {info.messagesTotal} messages. Earlier turns remain
-        stored and the agent still sees them on new sends.
+        Showing the latest {info.messagesShown} of {info.messagesTotal} messages. Scroll to the top to
+        load earlier turns — the agent still sees the full thread when you send.
       </p>
     </div>
   );
@@ -3576,6 +3576,18 @@ function useChatReadingHistory(active: boolean, viewportSelector: string) {
     };
   }, [active, viewportSelector]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const w = window as Window & { __reaveChatReadingHistory?: boolean };
+    w.__reaveChatReadingHistory = readingHistory;
+    if (!readingHistory) {
+      window.dispatchEvent(new CustomEvent('reave:chat-viewport-bottom'));
+    }
+    return () => {
+      w.__reaveChatReadingHistory = false;
+    };
+  }, [readingHistory]);
+
   return readingHistory;
 }
 
@@ -3643,6 +3655,10 @@ function PersistedMessageImporter({
     if (runtimeMatchesPersistedMessages(runtimeMessagesRef.current, messages)) {
       lastKey.current = key;
       composeTrace('react.import-skipped', { reason: 'runtime-matches', generation, key }, 'info');
+      return;
+    }
+    if (typeof window !== 'undefined' && (window as Window & { __reaveChatReadingHistory?: boolean }).__reaveChatReadingHistory) {
+      composeTrace('react.import-skipped', { reason: 'reading-history', generation, key }, 'info');
       return;
     }
     lastKey.current = key;

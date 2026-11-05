@@ -36,6 +36,8 @@ export const CHAT_TURN_CLIENT_EVENTS = [
   'recovery_abandoned',
   'thread_messages_loaded',
   'messages_persist_mismatch',
+  'thread_refresh_deferred',
+  'thread_full_history_loaded',
 ] as const;
 
 export type ChatTurnClientEvent = (typeof CHAT_TURN_CLIENT_EVENTS)[number];
