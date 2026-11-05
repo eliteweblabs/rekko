@@ -1234,6 +1234,12 @@ function createChatAdapter(
                 });
               } else if (event === 'text' && typeof data.text === 'string') {
                 // Ignore shrinking updates (e.g. a new Anthropic round starting with "").
+                if (data.text.length < streamedText.length) {
+                  postChatTurnTelemetry(threadId, 'stream_text_regress', {
+                    from: streamedText.length,
+                    to: data.text.length,
+                  });
+                }
                 if (data.text.length >= streamedText.length) {
                   streamedText = data.text;
                   yield { content: [{ type: 'text', text: streamedText }] };
@@ -1274,6 +1280,10 @@ function createChatAdapter(
                 }
                 const assistantText = storedChatPlainText(assistantMsg?.content ?? streamedText);
                 if (assistantText && assistantText !== streamedText) {
+                  postChatTurnTelemetry(threadId, 'messages_persist_mismatch', {
+                    streamedChars: streamedText.length,
+                    persistedChars: assistantText.length,
+                  });
                   streamedText = assistantText;
                   yield { content: [{ type: 'text', text: assistantText }] };
                 }

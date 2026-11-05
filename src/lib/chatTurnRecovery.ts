@@ -25,6 +25,7 @@ export function reconcileNoteForVariant(variant: ChatTurnReconcileVariant): stri
 export const CHAT_TURN_CLIENT_EVENTS = [
   'stream_stalled',
   'stream_idle_abort',
+  'stream_text_regress',
   'recovery_started',
   'recovery_success',
   'recovery_partial',
@@ -33,6 +34,8 @@ export const CHAT_TURN_CLIENT_EVENTS = [
   'recovery_auth_fail',
   'recovery_adopt',
   'recovery_abandoned',
+  'thread_messages_loaded',
+  'messages_persist_mismatch',
 ] as const;
 
 export type ChatTurnClientEvent = (typeof CHAT_TURN_CLIENT_EVENTS)[number];
@@ -48,6 +51,12 @@ export const CHAT_TURN_SERVER_EVENTS = [
   'persist_ok',
   'persist_fail',
   'reconcile',
+  'agent_history',
+  'agent_round',
+  'agent_tool',
+  'agent_stall',
+  'agent_finish',
+  'agent_error',
 ] as const;
 
 export type ChatTurnServerEvent = (typeof CHAT_TURN_SERVER_EVENTS)[number];

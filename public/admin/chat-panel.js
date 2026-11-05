@@ -1082,11 +1082,31 @@ function chatHistoryTruncationFromApi(data) {
   return { messagesTotal: data.messages_total, messagesShown: shown };
 }
 
+function postChatTurnTelemetry(threadId, event, detail) {
+  composeTrace(`telemetry.${event}`, { threadId, ...detail }, 'warn', { snap: true });
+  if (!threadId || typeof fetch === 'undefined') return;
+  void fetch(`/api/chats/${encodeURIComponent(threadId)}/telemetry`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ event, detail: detail ?? undefined }),
+  }).catch(() => {});
+}
+
 function applyChatThreadPayload(data) {
+  const prevCount = chatState.messages.length;
   chatState.messages = data.thread?.messages || [];
   chatState.title = data.thread?.title ?? '';
   chatState.linkedJobs = data.thread?.linked_jobs || [];
   chatState.historyTruncation = chatHistoryTruncationFromApi(data);
+  if (chatState.activeId) {
+    postChatTurnTelemetry(chatState.activeId, 'thread_messages_loaded', {
+      count: chatState.messages.length,
+      prevCount,
+      messages_truncated: Boolean(data.messages_truncated),
+      messages_total: data.messages_total ?? null,
+      historyTruncation: chatState.historyTruncation,
+    });
+  }
 }
 
 let chatState = {

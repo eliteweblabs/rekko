@@ -133,10 +133,13 @@ function parseChatDocs(body: Record<string, unknown>): ChatDocAttachment[] {
   return out;
 }
 
-function priorTurns(messages: { role: string; content: string }[]): ChatTurn[] {
+function priorTurns(
+  messages: { role: string; content: string; agent_usage?: ChatTurn['agent_usage'] }[],
+): ChatTurn[] {
   const turns = messages.map((m) => ({
     role: m.role as 'user' | 'assistant',
     content: m.content,
+    ...(m.agent_usage ? { agent_usage: m.agent_usage } : {}),
   }));
   const cap = historyCap();
   if (cap == null) return turns;

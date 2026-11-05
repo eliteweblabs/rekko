@@ -115,6 +115,33 @@ export function recordChatTurnEvent(
   })();
 }
 
+export async function listChatTurnEventsForThread(
+  threadId: string,
+  limit = 200,
+): Promise<ChatTurnEventRow[]> {
+  const pool = await ensureSchema();
+  if (!pool) return [];
+  const cap = Math.min(Math.max(limit, 1), 500);
+  const res = await pool.query(
+    `SELECT id, user_id, thread_id, event, source, detail, created_at
+     FROM chat_turn_events
+     WHERE thread_id = $1
+     ORDER BY created_at DESC
+     LIMIT $2`,
+    [threadId, cap],
+  );
+  return res.rows.map((row) => ({
+    id: String(row.id),
+    userId: String(row.user_id),
+    threadId: String(row.thread_id),
+    event: row.event as ChatTurnEventName,
+    source: row.source as ChatTurnEventSource,
+    detail: row.detail && typeof row.detail === 'object' ? (row.detail as Record<string, unknown>) : null,
+    createdAt:
+      row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at),
+  }));
+}
+
 export async function listRecentChatTurnEvents(limit = 100): Promise<ChatTurnEventRow[]> {
   const pool = await ensureSchema();
   if (!pool) return [];

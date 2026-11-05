@@ -273,6 +273,7 @@ async function runResumeOnThread(userId: string, resume: DeployResumeRow): Promi
   const priorTurns = thread.messages.map((m) => ({
     role: m.role as 'user' | 'assistant',
     content: m.content,
+    ...(m.agent_usage ? { agent_usage: m.agent_usage } : {}),
   }));
 
   const saved = await storeAppendChatMessages(userId, resume.thread_id, [

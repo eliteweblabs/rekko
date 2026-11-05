@@ -1,4 +1,5 @@
 import type { AnthropicUsage } from './anthropicMessages';
+import type { AgentToolRunEntry } from './chatAgentLedger';
 
 /** Per-turn Anthropic usage, rolled up for one agent run (one user message → final reply). */
 export type AgentUsageSummary = {
@@ -11,6 +12,8 @@ export type AgentUsageSummary = {
   cache_creation_input_tokens: number;
   /** Estimated API cost in USD from published list rates (approximate). */
   estimated_cost_usd: number;
+  /** Tools invoked this turn (for replay on later turns — not sent to the UI). */
+  tools_run?: AgentToolRunEntry[];
 };
 
 export type AgentUsageAccumulator = {
@@ -20,6 +23,7 @@ export type AgentUsageAccumulator = {
   output_tokens: number;
   cache_read_input_tokens: number;
   cache_creation_input_tokens: number;
+  tools_run: AgentToolRunEntry[];
 };
 
 const MODEL_LABELS: Record<string, string> = {
@@ -60,6 +64,7 @@ export function createAgentUsageAccumulator(model: string): AgentUsageAccumulato
     output_tokens: 0,
     cache_read_input_tokens: 0,
     cache_creation_input_tokens: 0,
+    tools_run: [],
   };
 }
 
@@ -95,7 +100,7 @@ export function estimateAgentCostUsd(acc: AgentUsageAccumulator): number {
 }
 
 export function finalizeAgentUsage(acc: AgentUsageAccumulator): AgentUsageSummary | null {
-  if (acc.rounds <= 0) return null;
+  if (acc.rounds <= 0 && acc.tools_run.length <= 0) return null;
   const estimated_cost_usd = estimateAgentCostUsd(acc);
   return {
     model: acc.model,
@@ -106,6 +111,7 @@ export function finalizeAgentUsage(acc: AgentUsageAccumulator): AgentUsageSummar
     cache_read_input_tokens: acc.cache_read_input_tokens,
     cache_creation_input_tokens: acc.cache_creation_input_tokens,
     estimated_cost_usd: Math.round(estimated_cost_usd * 10_000) / 10_000,
+    ...(acc.tools_run.length ? { tools_run: acc.tools_run } : {}),
   };
 }
 

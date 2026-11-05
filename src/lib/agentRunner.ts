@@ -87,6 +87,17 @@ import { formatDurableRecallBlock } from './agentMemoryStore';
 import { scheduleAgentMemoryExtract } from './agentMemoryExtract';
 import { loadOwnerIdentityBlock, loadRecentSessionsBlock } from './agentSituationalContextStore';
 import { resolveOwnerContact } from './ownerContact';
+import {
+  formatPriorTurnToolLedger,
+  summarizeToolResultForLedger,
+  toolRunLooksOk,
+} from './chatAgentLedger';
+import {
+  digestPriorTurns,
+  isChatAgentTraceVerbose,
+  traceAgentEvent,
+  traceAgentFinish,
+} from './chatAgentTrace';
 
 type AnthropicContentBlock =
   | { type: 'text'; text: string }
@@ -173,9 +184,13 @@ async function buildUserContentBlocks(
 
 async function anthropicContentFromStored(
   content: string,
-  role: ChatTurn['role']
+  role: ChatTurn['role'],
+  agentUsage?: ChatTurn['agent_usage'],
 ): Promise<string | AnthropicContentBlock[]> {
-  if (role === 'assistant') return content;
+  if (role === 'assistant') {
+    const ledger = formatPriorTurnToolLedger(agentUsage?.tools_run);
+    return ledger ? `${ledger}\n\n${content}` : content;
+  }
   const { text, images, docs } = parseChatMessageContent(content);
   if (!images.length && !docs.length) return content;
   return buildUserContentBlocks(text, images, docs);
@@ -439,7 +454,7 @@ function trimTurnsForAgent(turns: ChatTurn[]): ChatTurn[] {
       if (!hasAttachments && content.length > MAX_TURN_CHARS) {
         content = `${content.slice(0, MAX_TURN_CHARS)}\n…[turn truncated]`;
       }
-      return { role: turn.role, content };
+      return { role: turn.role, content, agent_usage: turn.agent_usage };
     })
     .filter(turnHasAnthropicContent);
   const cap = agentHistoryCap();
@@ -687,6 +702,21 @@ async function runKnowledgeAgentInner(
   const finishRun = async (text: string): Promise<AgentRunResult> => {
     const usage = finalizeAgentUsage(usageAcc);
     if (usage) logAgentUsage(usage, { threadId: agentCtx.threadId, userTextPreview: userText });
+    if (agentCtx.userId && agentCtx.threadId) {
+      traceAgentFinish(agentCtx.userId, agentCtx.threadId, {
+        digest: digestPriorTurns(
+          priorTurns.map((t) => ({ role: t.role, content: t.content })),
+          trimmedPrior,
+          { maxTurnChars: MAX_TURN_CHARS },
+        ),
+        toolRounds,
+        stallNudges,
+        llmTimeouts,
+        toolsRun: usageAcc.tools_run,
+        replyChars: text.length,
+        aborted: Boolean(stream?.signal?.aborted),
+      });
+    }
     if (!agentCtx.systemAlert) {
       scheduleAgentMemoryExtract({
         userText,
@@ -999,10 +1029,21 @@ async function runKnowledgeAgentInner(
     [await runtimeContextLine(model, modelOverride), recallBlock].filter(Boolean).join('\n\n'),
   );
   const cachedTools = withToolPromptCaching(tools);
+  const trimmedPrior = trimTurnsForAgent(priorTurns);
+  const agentCtxForTrace = getAgentContext();
+  if (agentCtxForTrace.userId && agentCtxForTrace.threadId) {
+    const digest = digestPriorTurns(
+      priorTurns.map((t) => ({ role: t.role, content: t.content })),
+      trimmedPrior,
+      { maxTurnChars: MAX_TURN_CHARS },
+    );
+    traceAgentEvent(agentCtxForTrace.userId, agentCtxForTrace.threadId, 'agent_history', digest);
+  }
+
   const messages: AnthropicMessage[] = await Promise.all([
-    ...trimTurnsForAgent(priorTurns).map(async (turn) => ({
+    ...trimmedPrior.map(async (turn) => ({
       role: turn.role,
-      content: await anthropicContentFromStored(turn.content, turn.role),
+      content: await anthropicContentFromStored(turn.content, turn.role, turn.agent_usage),
     })),
     (async () => ({
       role: 'user' as const,
@@ -1016,6 +1057,7 @@ async function runKnowledgeAgentInner(
   const llmTurnTimeoutMs = agentLlmTurnTimeoutMs();
   let stallNudges = 0;
   let llmTimeouts = 0;
+  let toolRounds = 0;
 
   const emitProgress = (update: Parameters<typeof setAgentProgress>[2]) => {
     const { userId, threadId } = getAgentContext();
@@ -1160,23 +1202,50 @@ async function runKnowledgeAgentInner(
     }
 
     if (stopReason === 'tool_use') {
+      toolRounds += 1;
       if (stream) finishRoundStream(assistantTextFromContent(content));
       messages.push({ role: 'assistant', content });
 
       const calls = content.filter(
         (b): b is Extract<AnthropicContentBlock, { type: 'tool_use' }> => b.type === 'tool_use',
       );
+      const traceCtx = getAgentContext();
+      if (traceCtx.userId && traceCtx.threadId && isChatAgentTraceVerbose()) {
+        traceAgentEvent(traceCtx.userId, traceCtx.threadId, 'agent_round', {
+          round: round + 1,
+          stopReason,
+          tools: calls.map((c) => c.name),
+        });
+      }
       // runTool always resolves, and never later than the budget we give it, so
       // every tool_use block is guaranteed a matching tool_result either way.
-      const invoke = (block: (typeof calls)[number]) =>
-        runTool(block.name, JSON.stringify(block.input ?? {}), {
+      const invoke = (block: (typeof calls)[number]) => {
+        const started = Date.now();
+        return runTool(block.name, JSON.stringify(block.input ?? {}), {
           signal: stream?.signal,
           timeoutMs: Math.max(5_000, deadline.clamp(agentToolTimeoutMs(block.name))),
-        }).then((out) => ({
-          type: 'tool_result' as const,
-          tool_use_id: block.id,
-          content: truncateToolResult(out),
-        }));
+        }).then((out) => {
+          const ms = Date.now() - started;
+          const entry = {
+            name: block.name,
+            ok: toolRunLooksOk(out),
+            ms,
+            hint: summarizeToolResultForLedger(block.name, out),
+          };
+          usageAcc.tools_run.push(entry);
+          if (traceCtx.userId && traceCtx.threadId && isChatAgentTraceVerbose()) {
+            traceAgentEvent(traceCtx.userId, traceCtx.threadId, 'agent_tool', {
+              ...entry,
+              resultChars: out.length,
+            });
+          }
+          return {
+            type: 'tool_result' as const,
+            tool_use_id: block.id,
+            content: truncateToolResult(out),
+          };
+        });
+      };
 
       let toolResults: AnthropicContentBlock[] = [];
       throwIfAborted(stream?.signal);
@@ -1239,6 +1308,17 @@ async function runKnowledgeAgentInner(
 
     if ((truncated || blank || unfulfilled) && stallNudges < MAX_STALL_NUDGES) {
       stallNudges++;
+      const traceCtx = getAgentContext();
+      if (traceCtx.userId && traceCtx.threadId) {
+        traceAgentEvent(traceCtx.userId, traceCtx.threadId, 'agent_stall', {
+          truncated,
+          blank,
+          unfulfilled,
+          stallNudges,
+          cutOffTool,
+          textPreview: text.slice(0, 200),
+        });
+      }
       messages.push(assistantTextMessageFor(content, '(interrupted)'));
       messages.push({
         role: 'user',
