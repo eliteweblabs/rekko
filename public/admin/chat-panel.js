@@ -1089,6 +1089,14 @@ function applyChatThreadPayload(data) {
   chatState.historyTruncation = chatHistoryTruncationFromApi(data);
 }
 
+function chatStoredMessagesEqual(a, b) {
+  if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i].role !== b[i].role || a[i].content !== b[i].content) return false;
+  }
+  return true;
+}
+
 let chatState = {
   threads: [],
   search: '',
@@ -2304,7 +2312,12 @@ function mountChatThreadRoot(threadHost) {
           cache: 'no-store',
         });
         const data = await readApiJson(res);
+        const beforeMessages = chatState.messages;
         applyChatThreadPayload(data);
+        if (chatStoredMessagesEqual(beforeMessages, chatState.messages)) {
+          composeTrace('shell.refresh-messages-unchanged', { threadId: chatState.activeId }, 'info');
+          return;
+        }
         if (chatState.messages.length) chatState.refetchAttemptedId = null;
         const host = getChatPanel()?.querySelector('#ch-thread-root');
         if (host && window.__reaveAgentChat?.syncMessages) {

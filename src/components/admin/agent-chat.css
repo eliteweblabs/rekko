@@ -58,6 +58,8 @@
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
+  /* Avoid scroll jumps when lazy images/markdown reflow above the viewport. */
+  overflow-anchor: none;
   padding: 1rem 0.85rem 0.75rem;
 }
 
