@@ -2107,12 +2107,6 @@ function ChatMarkdownLink(props: { href?: string; children?: ReactNode }) {
   );
 }
 
-const chatMarkdownComponents = unstable_memoizeMarkdownComponents({
-  a: ChatMarkdownLink,
-  CodeHeader: ChatMarkdownCodeHeader,
-  pre: ChatMarkdownPre,
-});
-
 function AssistantTextPart(props: { text?: string; status?: { type?: string } }) {
   const isStreaming = props.status?.type === 'running';
   const { text, buttons } = useChatRenderer(props.text ?? '', { skipStructured: isStreaming });
@@ -2271,7 +2265,7 @@ function ChatImagePreview({
         }}
         aria-label={`View full size: ${label}`}
       >
-        <img className={className} src={src} alt={label} loading="lazy" />
+        <img className={className} src={src} alt={label} loading="lazy" decoding="async" />
       </button>
       {!lightbox && open ? (
         <ChatImageLightbox src={src} alt={label} onClose={() => setOpen(false)} />
@@ -2279,6 +2273,20 @@ function ChatImagePreview({
     </>
   );
 }
+
+function ChatMarkdownImage(props: ComponentPropsWithoutRef<'img'> & { node?: unknown }) {
+  const src = props.src?.trim();
+  if (!src) return null;
+  const label = props.alt?.trim() || 'Image in response';
+  return <ChatImagePreview src={src} alt={label} className="aui-md-img" />;
+}
+
+const chatMarkdownComponents = unstable_memoizeMarkdownComponents({
+  a: ChatMarkdownLink,
+  CodeHeader: ChatMarkdownCodeHeader,
+  pre: ChatMarkdownPre,
+  img: ChatMarkdownImage,
+});
 
 function UserImagePart(props: { image?: string; alt?: string }) {
   if (!props.image) return null;

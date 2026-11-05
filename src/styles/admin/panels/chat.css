@@ -624,10 +624,13 @@ body.admin-split-view #chat-panel .ch-compose {
   margin-bottom: 0.45rem;
 }
 .ch-msg-img {
+  display: block;
   max-width: min(240px, 100%);
   max-height: 180px;
+  width: auto;
+  height: auto;
   border-radius: 8px;
-  object-fit: cover;
+  object-fit: contain;
   border: 1px solid var(--img-border);
 }
 .ch-input {
