@@ -43,13 +43,31 @@ export function updateAgentChat(el: HTMLElement, props: Partial<AgentChatPanelPr
 export function syncAgentChatMessages(
   el: HTMLElement,
   messages: AgentChatPanelProps['initialMessages'],
+  opts?: { force?: boolean },
 ) {
   const record = mounts.get(el);
   if (!record) return;
+  const force = opts?.force === true;
+  const readingHistory =
+    !force &&
+    typeof window !== 'undefined' &&
+    Boolean((window as Window & { __reaveChatReadingHistory?: boolean }).__reaveChatReadingHistory);
+
+  if (readingHistory) {
+    composeTrace(
+      'react.sync-messages-deferred',
+      { messageCount: messages?.length ?? 0 },
+      'info',
+      { snap: true },
+    );
+    renderMount(el, { ...record.props, initialMessages: messages });
+    return;
+  }
+
   const nextGen = (record.props.importMessagesGeneration ?? 0) + 1;
   composeTrace(
     'react.sync-messages-mount',
-    { messageCount: messages?.length ?? 0, generation: nextGen },
+    { messageCount: messages?.length ?? 0, generation: nextGen, force },
     'warn',
     { snap: true },
   );
@@ -76,6 +94,7 @@ declare global {
       syncMessages: typeof syncAgentChatMessages;
       unmount: typeof unmountAgentChat;
     };
+    __reaveChatReadingHistory?: boolean;
     __reaveTrace?: {
       enabled?: () => boolean;
       start?: (name: string, meta?: Record<string, unknown>) => (endMeta?: Record<string, unknown>) => number;

@@ -33,3 +33,12 @@ export function isChatReadingHistory() {
 export function shouldDeferChatThreadSync() {
   return isChatReadingHistory() || !isChatViewportNearBottom();
 }
+
+/** Immediate lock — do not wait for React state (auto-scroll checks this synchronously). */
+export function setChatReadingHistoryLock(reading) {
+  try {
+    window.__reaveChatReadingHistory = Boolean(reading);
+  } catch {
+    /* ignore */
+  }
+}

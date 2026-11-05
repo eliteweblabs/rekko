@@ -772,6 +772,8 @@ export type AgentChatPanelProps = {
   onAgentRunChange?: (running: boolean) => void;
   onAgentProgress?: (progress: AgentProgress | null) => void;
   onRefreshMessages?: () => void | Promise<void>;
+  /** Load full Postgres history when the UI cap hid older turns. */
+  onLoadFullHistory?: () => void | Promise<void>;
   /** Bump to import `initialMessages` into the live runtime without remounting. */
   importMessagesGeneration?: number;
   onMessagesPersist?: (
@@ -3013,14 +3015,32 @@ function useReleaseStuckRun(
   return { releaseIfIdle, dropLocalRun };
 }
 
-function ChatHistoryTruncationBanner({ info }: { info: ChatHistoryTruncation | null | undefined }) {
+function ChatHistoryTruncationBanner({
+  info,
+  onLoadFullHistory,
+  loading,
+}: {
+  info: ChatHistoryTruncation | null | undefined;
+  onLoadFullHistory?: () => void;
+  loading?: boolean;
+}) {
   if (!info || info.messagesTotal <= info.messagesShown) return null;
   return (
     <div className="aui-chat-notice aui-chat-notice--info" role="status">
       <p>
-        Showing the latest {info.messagesShown} of {info.messagesTotal} messages. Scroll to the top to
-        load earlier turns — the agent still sees the full thread when you send.
+        Showing the latest {info.messagesShown} of {info.messagesTotal} messages. The agent still sees
+        the full thread when you send.
       </p>
+      {onLoadFullHistory ? (
+        <button
+          type="button"
+          className="aui-chat-notice-action"
+          disabled={loading}
+          onClick={() => onLoadFullHistory()}
+        >
+          {loading ? 'Loading earlier messages…' : 'Load earlier messages'}
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -3480,6 +3500,16 @@ function ChatMessages() {
 
 const CHAT_NEAR_BOTTOM_PX = 80;
 
+function setReadingHistoryLock(reading: boolean): void {
+  if (typeof window === 'undefined') return;
+  (window as Window & { __reaveChatReadingHistory?: boolean }).__reaveChatReadingHistory = reading;
+}
+
+function isReadingHistoryLocked(): boolean {
+  if (typeof window === 'undefined') return false;
+  return Boolean((window as Window & { __reaveChatReadingHistory?: boolean }).__reaveChatReadingHistory);
+}
+
 function storedMessagesKey(messages: readonly StoredChatMessage[]): string {
   if (!messages.length) return '';
   const last = messages[messages.length - 1];
@@ -3558,10 +3588,12 @@ function useChatReadingHistory(active: boolean, viewportSelector: string) {
       const distance =
         viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight;
       const next = distance > CHAT_NEAR_BOTTOM_PX;
+      setReadingHistoryLock(next);
       setReadingHistory((prev) => (prev === next ? prev : next));
     };
 
     const markReading = () => {
+      setReadingHistoryLock(true);
       setReadingHistory((prev) => (prev ? prev : true));
     };
 
@@ -3577,14 +3609,12 @@ function useChatReadingHistory(active: boolean, viewportSelector: string) {
   }, [active, viewportSelector]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const w = window as Window & { __reaveChatReadingHistory?: boolean };
-    w.__reaveChatReadingHistory = readingHistory;
+    setReadingHistoryLock(readingHistory);
     if (!readingHistory) {
       window.dispatchEvent(new CustomEvent('reave:chat-viewport-bottom'));
     }
     return () => {
-      w.__reaveChatReadingHistory = false;
+      setReadingHistoryLock(false);
     };
   }, [readingHistory]);
 
@@ -3657,7 +3687,7 @@ function PersistedMessageImporter({
       composeTrace('react.import-skipped', { reason: 'runtime-matches', generation, key }, 'info');
       return;
     }
-    if (typeof window !== 'undefined' && (window as Window & { __reaveChatReadingHistory?: boolean }).__reaveChatReadingHistory) {
+    if (isReadingHistoryLocked()) {
       composeTrace('react.import-skipped', { reason: 'reading-history', generation, key }, 'info');
       return;
     }
@@ -3865,9 +3895,11 @@ function scrollAnchorIntoView(anchor: HTMLElement | null) {
 function ChatFollowBottom({
   followActive,
   recoveryText,
+  readingHistory,
 }: {
   followActive: boolean;
   recoveryText: string;
+  readingHistory: boolean;
 }) {
   const anchorRef = useRef<HTMLDivElement>(null);
   const isAtBottom = useThreadViewport((s) => s.isAtBottom);
@@ -3878,8 +3910,10 @@ function ChatFollowBottom({
   // Sync pin from the library's at-bottom flag, and watch native scroll so a
   // mid-stream wheel/touch immediately unpins before the next token re-centers.
   useEffect(() => {
-    if (isAtBottom) followPinnedRef.current = true;
-  }, [isAtBottom]);
+    if (isAtBottom && !readingHistory && !isReadingHistoryLocked()) {
+      followPinnedRef.current = true;
+    }
+  }, [isAtBottom, readingHistory]);
 
   useEffect(() => {
     const viewport = anchorRef.current?.closest('.aui-viewport');
@@ -3903,20 +3937,23 @@ function ChatFollowBottom({
   }, []);
 
   useLayoutEffect(() => {
+    if (readingHistory || isReadingHistoryLocked()) return;
     if (!followPinnedRef.current) return;
     if (!followActive && !recoveryText) return;
     scrollAnchorIntoView(anchorRef.current);
-  }, [followActive, isAtBottom, lastAssistantText, messageCount, recoveryText]);
+  }, [followActive, isAtBottom, lastAssistantText, messageCount, readingHistory, recoveryText]);
 
   useEffect(() => {
     const viewport = anchorRef.current?.closest('.aui-viewport');
-    if (!viewport || !followActive) return;
+    if (!viewport || !followActive || readingHistory) return;
 
     let frame: number | null = null;
     const schedule = () => {
+      if (readingHistory || isReadingHistoryLocked()) return;
       if (!followPinnedRef.current) return;
       if (frame !== null) cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
+        if (readingHistory || isReadingHistoryLocked()) return;
         if (!followPinnedRef.current) return;
         scrollAnchorIntoView(anchorRef.current);
       });
@@ -3928,7 +3965,7 @@ function ChatFollowBottom({
       observer.disconnect();
       if (frame !== null) cancelAnimationFrame(frame);
     };
-  }, [followActive, lastAssistantText]);
+  }, [followActive, lastAssistantText, readingHistory]);
 
   return <div ref={anchorRef} className="aui-scroll-anchor" aria-hidden="true" />;
 }
@@ -4001,12 +4038,23 @@ function AgentChatThreadBody({
     s.thread.isRunning ? lastAssistantMessageText(s.thread.messages) : '',
   );
   const showInThreadStatus = showThreadStatus && !recoveryText.trim() && !inFlightAssistantText.trim();
-  const followActive = showThreadStatus && !lightboxOpen;
   const isFocusVariant = propsRef.current?.variant === 'focus';
   const readingHistory = useChatReadingHistory(
     hasMessages,
     isFocusVariant ? '.aui-root--focus .aui-viewport' : '#ch-thread-root .aui-viewport',
   );
+  const followActive = showThreadStatus && !lightboxOpen && !readingHistory;
+  const [loadingFullHistory, setLoadingFullHistory] = useState(false);
+  const onLoadFullHistory = useCallback(async () => {
+    const fn = propsRef.current?.onLoadFullHistory;
+    if (!fn) return;
+    setLoadingFullHistory(true);
+    try {
+      await fn();
+    } finally {
+      setLoadingFullHistory(false);
+    }
+  }, [propsRef]);
 
   const onFocusInputReady = useCallback(
     (focus: () => void) => {
@@ -4093,10 +4141,14 @@ function AgentChatThreadBody({
           <ThreadPrimitive.Viewport
             className="aui-viewport"
             autoScroll={!lightboxOpen && !readingHistory}
-            scrollToBottomOnRunStart={!lightboxOpen}
+            scrollToBottomOnRunStart={!lightboxOpen && !readingHistory}
           >
             <div className="aui-thread-column">
-              <ChatHistoryTruncationBanner info={historyTruncation} />
+              <ChatHistoryTruncationBanner
+                info={historyTruncation}
+                onLoadFullHistory={propsRef.current?.onLoadFullHistory ? onLoadFullHistory : undefined}
+                loading={loadingFullHistory}
+              />
               <ChatMessages />
               {showInThreadStatus ? (
                 <InThreadRunStatus
@@ -4109,7 +4161,11 @@ function AgentChatThreadBody({
               {recovering && recoveryText.trim() ? (
                 <InFlightRecoveryMessage text={recoveryText} />
               ) : null}
-              <ChatFollowBottom followActive={followActive} recoveryText={lightboxOpen ? '' : recoveryText} />
+              <ChatFollowBottom
+                followActive={followActive}
+                recoveryText={lightboxOpen ? '' : recoveryText}
+                readingHistory={readingHistory}
+              />
             </div>
           </ThreadPrimitive.Viewport>
           <div className="aui-compose-footer">
